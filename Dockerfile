@@ -32,16 +32,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Download Chromium browser for Playwright.
-RUN playwright install chromium
+# Install Playwright system dependencies while still root.
+RUN playwright install-deps chromium
 
 # Create a non-root user and switch to it.
 RUN useradd --create-home --shell /bin/bash appuser && chown -R appuser:appuser /app
 USER appuser
+
+# Download Chromium browser for Playwright as the runtime user.
+RUN playwright install chromium
 
 # Copy application code.
 COPY --chown=appuser:appuser . .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

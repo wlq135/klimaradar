@@ -114,7 +114,14 @@ class PlaywrightSpider(Spider):
         self, query: str, product_type: str | None = None
     ) -> list[ListingSnapshot]:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
+            browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                ],
+            )
             context = await self._prepare_context(browser)
             page = await context.new_page()
             try:

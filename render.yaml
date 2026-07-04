@@ -10,7 +10,7 @@ services:
       - key: BASE_URL
         value: https://klima-radar.com
       - key: DEBUG
-        value: false
+        value: "false"
       - key: SENDGRID_API_KEY
         sync: false
       - key: FROM_EMAIL
