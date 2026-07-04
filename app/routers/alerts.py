@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.cloudflare import get_client_ip
 from app.config import settings
 from app.database import get_db
 from app.models import AlertSubscription
@@ -20,7 +21,7 @@ router = APIRouter(prefix="/api/alerts")
 
 
 def _client_ip(request: Request) -> str:
-    return request.client.host if request.client else "unknown"
+    return get_client_ip(request)
 
 
 def _generate_token() -> str:

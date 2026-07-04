@@ -1,10 +1,13 @@
 .venv
+.env
+.env.local
 __pycache__
 *.pyc
 *.pyo
 *.pyd
 .git
 .gitignore
+.github
 .pytest_cache
 .mypy_cache
 *.db
@@ -13,3 +16,10 @@ __pycache__
 server*.log
 inspect_*.html
 klimaradar.db
+.pytest.ini
+tests/
+launch_content/
+.vscode
+.idea
+*.md
+!README.md

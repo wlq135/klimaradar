@@ -12,16 +12,16 @@
   <!-- Open Graph -->
   <meta property="og:title" content="{{ title }}">
   <meta property="og:description" content="{{ description|default('Find portable air conditioners in stock across Europe. KlimaRadar tracks real-time AC availability, prices and delivery times in Germany, France and beyond.') }}">
-  <meta property="og:image" content="{{ request.url_for('static', path='/img/placeholder.svg') }}">
+  <meta property="og:image" content="{{ request.url.scheme + '://' + request.url.netloc + '/static/img/placeholder.svg' }}">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="{{ request.url }}">
+  <meta property="og:url" content="{{ canonical_url|default(request.url) }}">
   <meta property="og:site_name" content="KlimaRadar">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ title }}">
   <meta name="twitter:description" content="{{ description|default('Find portable air conditioners in stock across Europe. KlimaRadar tracks real-time AC availability, prices and delivery times in Germany, France and beyond.') }}">
-  <meta name="twitter:image" content="{{ request.url_for('static', path='/img/placeholder.svg') }}">
+  <meta name="twitter:image" content="{{ request.url.scheme + '://' + request.url.netloc + '/static/img/placeholder.svg' }}">
 
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="/static/css/app.css">

@@ -15,7 +15,7 @@ from app.database import engine
 from app.models import Base, Retailer
 from app.routers import alerts, pages
 from app.templating import templates
-from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+from app.cloudflare import is_cloudflare_request
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,15 +30,15 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Seed demo retailer if the database is empty.
+    # Seed retailers if the database is empty. Demo listings are only generated
+    # when ENABLE_DEMO is true.
     from app.database import AsyncSessionLocal
+    from app.seed import seed_demo_data
 
     async with AsyncSessionLocal() as session:
         retailer_count = await session.scalar(select(func.count(Retailer.id)))
         if not retailer_count:
-            logger.info("Seeding demo retailer and products...")
-            from app.seed import seed_demo_data
-
+            logger.info("Seeding retailers...")
             await seed_demo_data(session)
             await session.commit()
 
@@ -61,8 +61,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Trust X-Forwarded-Proto from Cloudflare so request.url uses https.
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+# Only trust X-Forwarded-Proto when the request comes through Cloudflare
+# (identified by the presence of CF-Connecting-IP). This avoids allowing any
+# client to spoof the request scheme.
+@app.middleware("http")
+async def cloudflare_scheme(request, call_next):
+    if (
+        is_cloudflare_request(request)
+        and request.headers.get("x-forwarded-proto") == "https"
+    ):
+        request.scope["scheme"] = "https"
+    return await call_next(request)
 
 
 @app.middleware("http")

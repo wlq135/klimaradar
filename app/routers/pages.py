@@ -2,6 +2,8 @@
 
 from datetime import datetime, timezone
 import hashlib
+import logging
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
@@ -10,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy.orm import selectinload
 
+from app.cloudflare import get_client_ip
 from app.config import settings
 from app.database import get_db
 from app.models import ClickEvent, Listing, Product, Retailer
@@ -21,7 +24,7 @@ from app.templating import templates
 
 
 def _client_ip(request: Request) -> str:
-    return request.client.host if request.client else "unknown"
+    return get_client_ip(request)
 
 
 _SITEMAP_CITIES = [
@@ -44,7 +47,9 @@ _DEFAULT_DESCRIPTION = (
 router = APIRouter()
 
 
-def _template_context(**extra) -> dict:
+def _template_context(request: Request, **extra) -> dict:
+    base = settings.base_url.rstrip("/")
+    extra.setdefault("canonical_url", base + request.url.path)
     return extra
 
 
@@ -54,6 +59,27 @@ def _hash_ip(ip: str | None) -> str | None:
     return hashlib.sha256(ip.encode("utf-8")).hexdigest()[:32]
 
 
+def _retailer_hostname(retailer: Retailer) -> str:
+    """Return the normalized hostname for a retailer domain."""
+    hostname = urlparse(retailer.domain).netloc or retailer.domain
+    return hostname.lower().removeprefix("www.")
+
+
+def _is_safe_redirect_target(target: str, retailer: Retailer) -> bool:
+    """Ensure the redirect target stays within the retailer's domain."""
+    try:
+        parsed = urlparse(target)
+    except ValueError:
+        return False
+    if parsed.scheme not in ("http", "https"):
+        return False
+    target_host = (parsed.netloc or "").lower().removeprefix("www.")
+    retailer_host = _retailer_hostname(retailer)
+    if not retailer_host:
+        return False
+    return target_host == retailer_host or target_host.endswith("." + retailer_host)
+
+
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request, session: AsyncSession = Depends(get_db)):
     stats = await _get_stats(session)
@@ -61,6 +87,7 @@ async def index(request: Request, session: AsyncSession = Depends(get_db)):
         request,
         "index.html",
         _template_context(
+            request,
             title="KlimaRadar — Find portable ACs in stock across Europe",
             description=_DEFAULT_DESCRIPTION,
             stats=stats,
@@ -111,6 +138,7 @@ async def privacy(request: Request):
         request,
         "privacy.html",
         _template_context(
+            request,
             title="Privacy Policy — KlimaRadar",
             description="Read KlimaRadar's privacy policy, cookie usage, email practices, affiliate disclosure and your GDPR rights.",
         ),
@@ -123,6 +151,7 @@ async def about(request: Request):
         request,
         "about.html",
         _template_context(
+            request,
             title="About KlimaRadar",
             description="Learn what KlimaRadar does: real-time portable AC stock and price tracking across Europe.",
         ),
@@ -135,6 +164,7 @@ async def terms(request: Request):
         request,
         "terms.html",
         _template_context(
+            request,
             title="Terms of Service — KlimaRadar",
             description="Read KlimaRadar's terms of service and affiliate disclosure.",
         ),
@@ -172,6 +202,7 @@ async def search(
         request,
         "search.html",
         _template_context(
+            request,
             title=title,
             description=description,
             listings=listings,
@@ -199,6 +230,7 @@ async def city_seo_page(
         request,
         "search.html",
         _template_context(
+            request,
             title=title,
             description=description,
             listings=listings,
@@ -229,14 +261,24 @@ async def affiliate_redirect(
         listing_id=listing.id,
         source=request.query_params.get("source"),
         user_agent=request.headers.get("user-agent"),
-        ip_hash=_hash_ip(request.client.host if request.client else None),
+        ip_hash=_hash_ip(_client_ip(request)),
     )
     session.add(click)
     await session.commit()
 
     target = listing.affiliate_url or tag_url(listing.retailer.domain, listing.url)
-    if not target:
-        raise HTTPException(status_code=500, detail="No redirect target for listing")
+    if not target or not _is_safe_redirect_target(target, listing.retailer):
+        target = tag_url(listing.retailer.domain, listing.url)
+    if not target or not _is_safe_redirect_target(target, listing.retailer):
+        logger = logging.getLogger(__name__)
+        logger.error(
+            "Unsafe redirect target for listing %s (retailer %s): %s",
+            listing.id,
+            listing.retailer.domain,
+            target,
+        )
+        raise HTTPException(status_code=400, detail="Invalid redirect target")
+
     return RedirectResponse(url=target)
 
 
@@ -260,10 +302,14 @@ async def trigger_scrape(
     country: str | None = None,
     x_admin_api_key: str | None = Header(None, alias="X-Admin-API-Key"),
 ):
-    """Manual trigger for the scraper. Protected by ADMIN_API_KEY in production."""
+    """Manual trigger for the scraper. Requires a non-empty ADMIN_API_KEY."""
     await admin_scrape_limiter.check(_client_ip(request))
-    if settings.admin_api_key and x_admin_api_key != settings.admin_api_key:
-        raise HTTPException(status_code=403, detail="Invalid or missing admin API key")
+    if not settings.admin_api_key:
+        raise HTTPException(
+            status_code=503, detail="Admin endpoint is not configured"
+        )
+    if x_admin_api_key != settings.admin_api_key:
+        raise HTTPException(status_code=403, detail="Invalid admin API key")
     results = await run_scrape(country=country)
     return {"results": results}
 

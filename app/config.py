@@ -29,8 +29,11 @@ class Settings(BaseSettings):
     smtp_password: str = ""
 
     # Admin API key used to protect manual endpoints like /api/admin/scrape.
-    # Leave empty to allow unauthenticated access (not recommended in production).
+    # Must be set in production; endpoints will reject requests when empty.
     admin_api_key: str = ""
+
+    # Demo data/spider. Keep disabled on the public site to avoid fake listings.
+    enable_demo: bool = False
 
     amazon_de_affiliate_tag: str = ""
     mediamarkt_de_affiliate_tag: str = ""

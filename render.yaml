@@ -25,6 +25,8 @@ services:
         sync: false
       - key: ADMIN_API_KEY
         sync: false
+      - key: ENABLE_DEMO
+        value: "false"
       - key: AMAZON_DE_AFFILIATE_TAG
         sync: false
       - key: MEDIAMARKT_DE_AFFILIATE_TAG

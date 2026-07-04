@@ -153,11 +153,13 @@ async def notify_subscribers_for_listing(
     sent = 0
     backend = get_email_backend()
     for sub in subs:
-        if sub.city and sub.city != listing.city_tag:
-            continue
+        if sub.city:
+            listing_city = (listing.city_tag or "").lower()
+            if listing_city and listing_city != sub.city.lower():
+                continue
         if sub.product_type and sub.product_type != listing.product.product_type:
             continue
-        if sub.min_btu and (listing.product.btu_min or 0) < sub.min_btu:
+        if sub.min_btu and (listing.product.btu_max or 0) < sub.min_btu:
             continue
         if sub.max_price and (listing.price or float("inf")) > sub.max_price:
             continue

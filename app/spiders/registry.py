@@ -60,10 +60,11 @@ def get_spiders_for_country(
     """
     spiders: list[Spider] = []
 
-    # Always include the demo spider so the MVP works without live scraping.
-    demo_id = retailer_id_map.get(("DEMO", "Demo Retailer"))
-    if demo_id:
-        spiders.append(DemoSpider(retailer_id=demo_id))
+    # Demo spider is only enabled in debug/demo mode to avoid fake public listings.
+    if settings.enable_demo:
+        demo_id = retailer_id_map.get(("DEMO", "Demo Retailer"))
+        if demo_id:
+            spiders.append(DemoSpider(retailer_id=demo_id))
 
     # Playwright-based spiders for known retailers.
     playwright_spiders: list[tuple[str, str, type[Spider]]] = [
