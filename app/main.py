@@ -15,6 +15,7 @@ from app.database import engine
 from app.models import Base, Retailer
 from app.routers import alerts, pages
 from app.templating import templates
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 logging.basicConfig(
     level=logging.INFO,
@@ -59,6 +60,9 @@ app = FastAPI(
     debug=settings.debug,
     lifespan=lifespan,
 )
+
+# Trust X-Forwarded-Proto from Cloudflare so request.url uses https.
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 
 @app.middleware("http")
