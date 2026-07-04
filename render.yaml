@@ -2,7 +2,7 @@ services:
   - type: web
     name: klimaradar
     runtime: docker
-    repo: https://github.com/YOUR_USERNAME/klimaradar
+    repo: https://github.com/wlq135/klimaradar
     plan: starter
     customDomains:
       - name: klima-radar.com
