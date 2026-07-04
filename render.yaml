@@ -4,8 +4,6 @@ services:
     runtime: docker
     repo: https://github.com/wlq135/klimaradar
     plan: starter
-    customDomains:
-      - name: klima-radar.com
     envVars:
       - key: DATABASE_URL
         value: sqlite+aiosqlite:///./klimaradar.db
@@ -34,4 +32,3 @@ services:
       - key: PLAYWRIGHT_PROXY_PASSWORD
         sync: false
     healthCheckPath: /api/health
-    autoDeploy: true
