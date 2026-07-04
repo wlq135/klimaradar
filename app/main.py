@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
     # Seed retailers if the database is empty. Demo listings are only generated
     # when ENABLE_DEMO is true.
     from app.database import AsyncSessionLocal
-    from app.seed import seed_demo_data
+    from app.seed import delete_demo_data, seed_demo_data
 
     async with AsyncSessionLocal() as session:
         retailer_count = await session.scalar(select(func.count(Retailer.id)))
@@ -41,6 +41,8 @@ async def lifespan(app: FastAPI):
             logger.info("Seeding retailers...")
             await seed_demo_data(session)
             await session.commit()
+        elif not settings.enable_demo:
+            await delete_demo_data(session)
 
     # Start periodic scraping.
     from app.scheduler import create_scheduler

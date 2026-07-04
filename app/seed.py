@@ -2,9 +2,12 @@
 
 import asyncio
 
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.config import settings
 from app.database import AsyncSessionLocal, engine
-from app.models import Base, Retailer
+from app.models import Base, Listing, Retailer
 from app.services.scraper import run_scrape
 
 
@@ -71,6 +74,29 @@ async def seed_demo_data(session: AsyncSession | None = None) -> None:
         if settings.enable_demo:
             # Run the demo spider to insert sample listings.
             await run_scrape(country="DEMO")
+    finally:
+        if close_session:
+            await session.close()
+
+
+async def delete_demo_data(session: AsyncSession | None = None) -> None:
+    """Remove demo retailer and its listings when ENABLE_DEMO is false."""
+    close_session = session is None
+    if session is None:
+        session = AsyncSessionLocal()
+
+    try:
+        demo_retailer = await session.scalar(
+            select(Retailer).where(Retailer.country == "DEMO")
+        )
+        if demo_retailer:
+            await session.execute(
+                delete(Listing).where(Listing.retailer_id == demo_retailer.id)
+            )
+            await session.execute(
+                delete(Retailer).where(Retailer.id == demo_retailer.id)
+            )
+            await session.commit()
     finally:
         if close_session:
             await session.close()
