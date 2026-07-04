@@ -6,7 +6,7 @@ services:
     plan: starter
     envVars:
       - key: DATABASE_URL
-        value: sqlite+aiosqlite:///./klimaradar.db
+        value: sqlite+aiosqlite:////data/klimaradar.db
       - key: BASE_URL
         value: https://klima-radar.com
       - key: DEBUG
@@ -32,3 +32,7 @@ services:
       - key: PLAYWRIGHT_PROXY_PASSWORD
         sync: false
     healthCheckPath: /api/health
+    disk:
+      name: klimaradar-data
+      mountPath: /data
+      sizeGB: 1

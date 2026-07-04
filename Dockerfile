@@ -32,18 +32,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright system dependencies while still root.
+# Install Playwright system dependencies and Chromium browser.
 RUN playwright install-deps chromium
-
-# Create a non-root user and switch to it.
-RUN useradd --create-home --shell /bin/bash appuser && chown -R appuser:appuser /app
-USER appuser
-
-# Download Chromium browser for Playwright as the runtime user.
 RUN playwright install chromium
 
+# Create mount point for a Render Disk so the SQLite database can persist.
+RUN mkdir -p /data
+
 # Copy application code.
-COPY --chown=appuser:appuser . .
+COPY . .
 
 EXPOSE 8000
 
