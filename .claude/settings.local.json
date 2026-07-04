@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s http://127.0.0.1:8000/api/health)",
+      "Bash(curl -s \"http://127.0.0.1:8000/search?country=DE\")",
+      "Bash(curl -s \"http://127.0.0.1:8000/\")",
+      "Bash(curl -s -X POST \"http://127.0.0.1:8000/api/alerts/subscribe\" -H \"Content-Type: application/json\" -d '{\"email\":\"test@example.com\",\"country\":\"DE\",\"city\":\"Berlin\",\"product_type\":\"portable\",\"min_btu\":7000,\"max_price\":500}')",
+      "WebFetch(domain:www.amazon.de)",
+      "WebFetch(domain:www.mediamarkt.de)",
+      "WebFetch(domain:www.boulanger.com)",
+      "Bash(curl -s -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" \"https://www.amazon.de/s?k=mobile+klimaanlage\")"
+    ]
+  }
+}

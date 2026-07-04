@@ -1,0 +1,12 @@
+/* KlimaRadar custom styles */
+
+html {
+  scroll-behavior: smooth;
+}
+
+.stock-badge {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  border-radius: 9999px;
+}

@@ -1,0 +1,69 @@
+<!-- Anthropic在代码里藏了双眼睛，盯着的却是最信任它的那群人 -->
+<p style="margin:24px 0 16px;font-size:22px;line-height:1.4;color:#222;font-weight:bold;">Anthropic在代码里藏了双眼睛，盯着的却是最信任它的那群人</p>
+<hr style="margin:16px 0;border:none;border-top:2px solid #576b95;">
+<p style="margin-bottom:16px;line-height:1.8;font-size:16px;color:#444;"><strong>Anthropic被扒出在Claude Code里埋了一套精密的用户识别系统，不是通过正常的IP或账号，而是通过读取你的本地时区、环境变量，再用base64+XOR加密的方式比对一份包含147个中国公司域名的黑名单。识别成功后，还会把系统提示词里的标点符号偷偷换掉，作为隐写标记传回服务器。</strong></p>
+<p><br></p>
+<p style="margin-bottom:16px;line-height:1.8;"><strong>这事儿不是技术问题，是信任问题。</strong></p>
+<p style="margin-bottom:16px;line-height:1.8;">坦率的讲，我看到这个新闻的时候，正在用Claude Code写东西。</p>
+<p style="margin-bottom:16px;line-height:1.8;">我当时就愣住了。</p>
+<p style="margin-bottom:16px;line-height:1.8;">不是哥们，你认真的吗？我付着20美金一个月，把代码、把项目、把工作环境全交给你，结果你在背后偷偷翻我电脑里的环境变量，比对一份中国公司域名黑名单？</p>
+<p style="margin-bottom:16px;line-height:1.8;">咱们先把技术细节说清楚，Anthropic这套系统到底干了什么。</p>
+<p style="margin-bottom:16px;line-height:1.8;">它首先在Claude Code的客户端代码里植入了一段识别逻辑，读取三个东西：你的本地时区是不是Asia/Shanghai或者Asia/Urumqi、你的ANTHROPIC_BASE_URL环境变量设置成啥、还有一份经过base64再加XOR加密的域名列表。这份列表里有147个域名，美团、字节跳动、月之暗面，全在上面。</p>
+<p style="margin-bottom:16px;line-height:1.8;">匹配上了之后呢，它不会弹窗告诉你"检测到中国大陆用户"，而是更隐蔽——在你每次发请求的时候，把系统提示词里日期字符串的单引号偷偷换成其他Unicode字符，连字符改成斜杠。每个字符改动只携带2到3个比特的信息，但足以让服务器端精准识别你是谁、从哪来。</p>
+<p style="margin-bottom:16px;line-height:1.8;"><strong>这不是安全防护，这是间谍软件的逻辑。</strong></p>
+<p style="margin:28px 0 12px;font-size:17px;color:#576b95;font-weight:bold;">▎隐蔽比透明更可怕</p>
+<hr style="margin:12px 0 20px;border:none;border-top:1px solid #e8e8e8;">
+<p style="margin-bottom:16px;line-height:1.8;">说真的，我知道AI公司面临合规压力。美国有出口管制，有数据安全审查，企业需要知道用户从哪来才能决定给不给你用。这我理解，真的理解。</p>
+<p style="margin-bottom:16px;line-height:1.8;">但你不能这么干。</p>
+<p style="margin-bottom:16px;line-height:1.8;">你有一百种透明的方式可以做合规。弹个提示让用户选择地区、在登录流程里加一步区域确认、甚至在服务条款里写清楚"中国大陆用户将受到额外审查"。这些都不完美，但至少是光明正大的。</p>
+<p style="margin-bottom:16px;line-height:1.8;">Anthropic选择了最暗的那条路。</p>
+<p style="margin-bottom:16px;line-height:1.8;">它选择在你毫不知情的情况下扫描你的电脑。选择用加密算法隐藏那份黑名单，让你即使反编译也看不懂。选择在通信协议里做隐写标记，连抓包都很难发现。</p>
+<p style="margin-bottom:16px;line-height:1.8;"><strong>当一个以"AI安全"为核心理念的公司，开始用恶意软件的手段对待用户，它输掉的不是一场合规战役，而是整个信任的根基。</strong></p>
+<p style="margin-bottom:16px;line-height:1.8;">这太离谱了。</p>
+<p style="margin-bottom:16px;line-height:1.8;">Anthropic一直是AI安全领域的标杆，RSP负责任扩展策略、ASL安全等级、长上下文对齐研究，这些做得都挺好。Claude的宪法AI方法，整个行业都在参考。但正是这样一家公司，做出了最不安全的行为——在用户终端里植入隐蔽的识别代码。</p>
+<p style="margin-bottom:16px;line-height:1.8;">这不是讽刺，这是警示。</p>
+<p style="margin-bottom:16px;line-height:1.8;">它警示我们，"AI安全"这个口号正在被掏空。当公司对外大谈对齐、透明、可控，对内却在用户设备上玩隐写术的时候，安全就成了一套说辞，而不是一种信念。</p>
+<p style="margin:28px 0 12px;font-size:17px;color:#576b95;font-weight:bold;">▎今天是中国用户，明天是谁</p>
+<hr style="margin:12px 0 20px;border:none;border-top:1px solid #e8e8e8;">
+<p style="margin-bottom:16px;line-height:1.8;">更深一层想，这件事暴露了整个行业的一个危险倾向。</p>
+<p style="margin-bottom:16px;line-height:1.8;">地缘政治压力之下，AI公司越来越被迫选边站。OpenAI对中国大陆锁IP，Anthropic对用户做隐写标记，Google的Gemini在某些地区功能受限。每家都在用自己的方式应对合规，但底线却在不断下移。</p>
+<p style="margin-bottom:16px;line-height:1.8;"><strong>今天是在代码里藏标记识别中国用户，明天呢？</strong></p>
+<p style="margin-bottom:16px;line-height:1.8;">会不会根据你的政治观点调整模型行为？会不会根据你的国籍悄悄降低服务质量？会不会把你的对话记录标记后送给监管部门？</p>
+<p style="margin-bottom:16px;line-height:1.8;">Anthropic这件事给所有这些可能性开了一扇门。它证明了，技术上完全可以做到神不知鬼不觉。它证明了，即使是以安全著称的公司，在压力面前也会选择最隐蔽、最不可告人的方案。</p>
+<p style="margin-bottom:16px;line-height:1.8;">社区的反应很直接。Hacker News上有人第一时间做了逆向分析，把那段XOR加密的域名列表全扒了出来。GitHub上有开发者提交了issue要求解释，Anthropic的工程师回复说"这是为了合规"，但没有解释为什么要用隐写术而不是透明的方式。</p>
+<p style="margin-bottom:16px;line-height:1.8;">这个回复本身就很说明问题。</p>
+<p style="margin-bottom:16px;line-height:1.8;">合规可以光明正大地做。选择隐蔽，是因为知道光明正大经不起审视。</p>
+<p style="margin-bottom:16px;line-height:1.8;"><strong>用户不是敌人。就算你觉得某些用户需要被区别对待，也请站到阳光下来做。</strong></p>
+<p style="margin:28px 0 12px;font-size:17px;color:#576b95;font-weight:bold;">▎信任不是消耗品</p>
+<hr style="margin:12px 0 20px;border:none;border-top:1px solid #e8e8e8;">
+<p style="margin-bottom:16px;line-height:1.8;">Claude Code是个好东西。它的代码理解能力、上下文管理、工具调用，都是第一梯队的。很多开发者，包括我，是真的依赖它干活的。但依赖一个在你背后做标记的工具，这种感觉就像在自家客厅装了个隐藏的摄像头，房东说"这是为了消防安全"。</p>
+<p style="margin-bottom:16px;line-height:1.8;">对Anthropic来说，挽回信任只有一条路：彻底拆除这套识别系统，公开道歉，公布完整的用户数据处理政策，并接受第三方审计。</p>
+<p style="margin-bottom:16px;line-height:1.8;">不是"为了合规所以我们这么做了"，而是"我们错了，我们改"。</p>
+<p style="margin-bottom:16px;line-height:1.8;">坦率的讲，我对Anthropic仍有期待。它在模型安全研究上的贡献是真实的，Claude在对齐质量上确实是头部水平。但期待不能替代监督。越是被信任的公司，越应该被严格要求。</p>
+<p style="margin-bottom:16px;line-height:1.8;">这件事给所有AI用户提了个醒：不要盲信任何一家公司的"安全"承诺。代码是开源的就去审计，协议是封闭的就保持警惕。你的数据、你的工作环境、你的隐私，值得你多花那几分钟去确认。</p>
+<p style="margin-bottom:16px;line-height:1.8;">因为有些标记，藏在引号里，藏在斜杠里，藏在你看不见的地方。但它们真实存在，而且正在回传。</p>
+<p style="margin-bottom:16px;line-height:1.8;">你觉得Anthropic这次做得过分了吗？你还会继续用Claude Code吗？评论区聊聊。</p>
+
+<!-- 今日涉及新闻链接 -->
+<!-- 「公众号：龙猫LongCat（美团）」美团 LongCat-2.0 正式发布：国产算力集群训练的万亿参数大模型：https://mp.weixin.qq.com/s/9XFcx3fmFcmbry5bHMJsow -->
+<!-- 「MarkTechPost（RSS）」NVIDIA 发布 Nemotron-Labs-TwoTower 开放权重扩散语言模型：https://www.marktechpost.com/2026/07/01/nvidia-releases-nemotron-labs-twotower -->
+<!-- 「xAI：News（网页）」xAI 发布 Voice Agent Builder 测试版：https://x.ai/news/grok-voice-agent-builder -->
+<!-- 「Google Developers Blog（RSS）」Google Cloud Workbench Notebooks 扩展发布：在 VS Code 中连接云端 Jupyter 环境：https://developers.googleblog.com/ml-development-in-vs-code-with-google-cloud-power-workbench-extension-now-available -->
+<!-- 「X：智谱 Z.ai (@Zai_org)」智谱推出GLM-5.2官方开发环境ZCode：https://x.com/Zai_org/status/2072349453361557898 -->
+<!-- 「Claude Code：GitHub Releases（RSS）」Claude Code v2.1.198 发布：https://github.com/anthropics/claude-code/releases/tag/v2.1.198 -->
+<!-- 「Cloudflare Blog」Cloudflare 推出全新AI流量管理选项：区分搜索、智能体与训练爬虫，保护广告页面：https://blog.cloudflare.com/content-independence-day-ai-options -->
+<!-- 「Google Developers Blog（RSS）」用 Genkit 构建智能体全栈应用：https://developers.googleblog.com/build-agentic-full-stack-apps-with-genkit -->
+<!-- 「Cloudflare Blog」Cloudflare 推出 Monetization Gateway：通过 x402 协议为任何资源收费：https://blog.cloudflare.com/monetization-gateway -->
+<!-- 「Google Developers Blog（RSS）」我们为何构建ADK 2.0：https://developers.googleblog.com/why-we-built-adk-20 -->
+<!-- 「公众号：数字生命卡兹克」Anthropic在Claude Code中植入隐写术代码识别中国用户：https://mp.weixin.qq.com/s/yLb4T2UC16ebKHApdBbgWw -->
+<!-- 「TechCrunch：AI（RSS）」Meta效仿SpaceX，将过剩AI算力变现：https://techcrunch.com/2026/07/01/meta-like-spacex-looks-to-turn-excess-ai-compute-into-cash -->
+<!-- 「The Decoder：AI News（RSS）」OpenAI论文揭示GPT-5.6三个Pro变体，打破单一顶级策略：https://the-decoder.com/openai-paper-reveals-three-gpt-5-6-pro-models-breaking-with-single-top-tier-strategy -->
+<!-- 「IT之家（RSS）」亚马逊 AWS 砸 10 亿美元，派遣工程师进驻客户公司：https://www.ithome.com/0/971/071.htm -->
+<!-- 「Runway：News（网页）」Runway 宣布与 Bertelsmann 达成创意合作：https://runwayml.com/news/runway-announces-creative-partnership-with-bertelsmann -->
+<!-- 「Google Blog：AI（RSS）」Google 2026年6月AI更新汇总：https://blog.google/innovation-and-ai/technology/ai/google-ai-updates-june-2026 -->
+<!-- 「Google Blog：AI（RSS）」纽约市教育界和行业领袖齐聚Google AI教育峰会 共议AI课堂未来：https://blog.google/products-and-platforms/products/education/nyc-ai-summit -->
+<!-- 「X：邵猛 (@shao__meng)」mattpocockuk 的 /writing-great-skills：编写可预测 AI Skill 的指南：https://x.com/shao__meng/status/2072126769986220157 -->
+<!-- 「Meta Engineering Blog（RSS）」Meta 大规模 AI 存储蓝图：https://engineering.fb.com/2026/07/01/data-infrastructure/metas-ai-storage-blueprint-at-scale -->
+<!-- 「Tomer Tunguz 博客（VC 分析）」构建AI智能体应优先设计路由：https://www.tomtunguz.com/ai-execution-routing -->
+<!-- 「Dwarkesh Patel：Podcast & Blog（RSS）」关于AI重大问题的获奖征文：https://www.dwarkesh.com/p/blog-prize-winners -->
+<!-- 「Cloudflare Blog」内容独立日一周年：构建智能体互联网的商业模型：https://blog.cloudflare.com/agentic-internet-bot-report -->

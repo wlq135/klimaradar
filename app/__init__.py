@@ -1,0 +1,1 @@
+"""KlimaRadar application package."""

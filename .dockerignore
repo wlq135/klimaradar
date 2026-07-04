@@ -1,0 +1,15 @@
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.git
+.gitignore
+.pytest_cache
+.mypy_cache
+*.db
+*.sqlite
+*.sqlite3
+server*.log
+inspect_*.html
+klimaradar.db

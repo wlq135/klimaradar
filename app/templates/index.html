@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="bg-gradient-to-br from-blue-600 to-blue-800 text-white py-16">
+  <div class="max-w-4xl mx-auto px-4 text-center">
+    <h1 class="text-4xl md:text-5xl font-extrabold mb-4">Stop refreshing retailer sites.</h1>
+    <p class="text-lg md:text-xl text-blue-100 mb-8">
+      KlimaRadar tracks portable AC stock and prices across Germany, France and beyond.
+      Get an email the moment a unit is available.
+    </p>
+    <form action="/search" method="get" class="bg-white rounded-xl p-4 shadow-lg max-w-2xl mx-auto flex flex-col md:flex-row gap-3">
+      <select name="country" class="md:w-1/4 rounded-lg border-slate-300 px-4 py-3 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none">
+        <option value="DE">Germany</option>
+        <option value="FR">France</option>
+        <option value="IT">Italy</option>
+        <option value="ES">Spain</option>
+      </select>
+      <input type="text" name="city" placeholder="City (e.g. Berlin)" class="md:w-1/3 rounded-lg border-slate-300 px-4 py-3 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none">
+      <button type="submit" class="md:w-1/3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-6 py-3 transition">
+        Find ACs
+      </button>
+    </form>
+  </div>
+</section>
+
+<section class="py-12">
+  <div class="max-w-6xl mx-auto px-4">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12">
+      <div class="bg-white rounded-lg shadow p-6 text-center">
+        <div class="text-3xl font-bold text-blue-600">{{ stats.total_listings }}</div>
+        <div class="text-slate-500 text-sm">Tracked listings</div>
+      </div>
+      <div class="bg-white rounded-lg shadow p-6 text-center">
+        <div class="text-3xl font-bold text-green-600">{{ stats.in_stock_listings }}</div>
+        <div class="text-slate-500 text-sm">In stock now</div>
+      </div>
+      <div class="bg-white rounded-lg shadow p-6 text-center">
+        <div class="text-3xl font-bold text-purple-600">{{ stats.active_subscriptions }}</div>
+        <div class="text-slate-500 text-sm">Active alerts</div>
+      </div>
+      <div class="bg-white rounded-lg shadow p-6 text-center">
+        <div class="text-3xl font-bold text-orange-600">{{ stats.countries|length }}</div>
+        <div class="text-slate-500 text-sm">Countries</div>
+      </div>
+    </div>
+
+    <h2 class="text-2xl font-bold mb-6">Popular searches</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      <a href="/DE/Berlin/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+        <h3 class="font-semibold text-blue-600">Portable AC in Berlin</h3>
+        <p class="text-sm text-slate-500">See in-stock units in Germany's capital.</p>
+      </a>
+      <a href="/DE/Munich/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+        <h3 class="font-semibold text-blue-600">Portable AC in Munich</h3>
+        <p class="text-sm text-slate-500">Track availability in Bavaria.</p>
+      </a>
+      <a href="/FR/Paris/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+        <h3 class="font-semibold text-blue-600">Portable AC in Paris</h3>
+        <p class="text-sm text-slate-500">Find units around Île-de-France.</p>
+      </a>
+    </div>
+  </div>
+</section>
+{% endblock %}
