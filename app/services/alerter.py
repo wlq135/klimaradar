@@ -63,8 +63,65 @@ class SendGridEmailBackend(EmailBackend):
             return False
 
 
+class SmtpEmailBackend(EmailBackend):
+    """Sends email via any SMTP relay (Brevo, Mailgun, AWS SES, etc.)."""
+
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        user: str,
+        password: str,
+        from_email: str,
+    ):
+        self.host = host
+        self.port = port
+        self.user = user
+        self.password = password
+        self.from_email = from_email
+
+    async def send(self, to_email: str, subject: str, body: str) -> bool:
+        try:
+            from aiosmtplib import send
+            from email.message import EmailMessage
+        except ImportError:  # pragma: no cover
+            logger.error("aiosmtplib package not installed")
+            return False
+
+        message = EmailMessage()
+        message["From"] = self.from_email
+        message["To"] = to_email
+        message["Subject"] = subject
+        message.set_content(body, subtype="html")
+
+        try:
+            await send(
+                message,
+                hostname=self.host,
+                port=self.port,
+                username=self.user,
+                password=self.password,
+                start_tls=True,
+            )
+            return True
+        except Exception as exc:  # pragma: no cover
+            logger.exception("Failed to send email via SMTP: %s", exc)
+            return False
+
+
 def get_email_backend() -> EmailBackend:
-    """Return the configured email backend."""
+    """Return the configured email backend.
+
+    Priority: SMTP > SendGrid > console fallback.
+    """
+    if settings.smtp_host and settings.smtp_user and settings.smtp_password:
+        return SmtpEmailBackend(
+            settings.smtp_host,
+            settings.smtp_port,
+            settings.smtp_user,
+            settings.smtp_password,
+            settings.from_email,
+        )
     if settings.sendgrid_api_key:
         return SendGridEmailBackend(settings.sendgrid_api_key, settings.from_email)
     return ConsoleEmailBackend()

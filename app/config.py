@@ -21,6 +21,13 @@ class Settings(BaseSettings):
     sendgrid_api_key: str = ""
     from_email: str = "alerts@klima-radar.com"
 
+    # SMTP email backend (e.g. Brevo, Mailgun, AWS SES). If SMTP_HOST is set,
+    # it takes precedence over SendGrid.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+
     # Admin API key used to protect manual endpoints like /api/admin/scrape.
     # Leave empty to allow unauthenticated access (not recommended in production).
     admin_api_key: str = ""
