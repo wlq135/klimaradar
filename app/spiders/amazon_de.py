@@ -29,12 +29,12 @@ class AmazonDeSpider(PlaywrightSpider):
     def search_url_template(self) -> str:
         return "https://www.amazon.de/s?k={query}"
 
-    async def _extract_listings(
-        self, page: Page, product_type: str | None = None
-    ) -> list[ListingSnapshot]:
-        # Amazon.de sometimes shows international USD offers unless a currency
-        # preference cookie is present. Force EUR before extracting prices.
-        await page.context.add_cookies(
+    default_query: str = "mobiles klimagerät"
+
+    async def _pre_navigate(self, context) -> None:
+        # Amazon sometimes shows international USD offers unless a currency
+        # preference cookie is present. Force EUR before loading the page.
+        await context.add_cookies(
             [
                 {
                     "name": "i18n-prefs",
@@ -50,8 +50,17 @@ class AmazonDeSpider(PlaywrightSpider):
                 },
             ]
         )
-        # Reload so the cookie is respected for price rendering.
-        await page.reload(wait_until="domcontentloaded", timeout=60000)
+
+    async def _extract_listings(
+        self, page: Page, product_type: str | None = None
+    ) -> list[ListingSnapshot]:
+        # Give the results grid (and any WAF challenge) time to render.
+        try:
+            await page.wait_for_selector(
+                'div[data-component-type="s-search-result"]', timeout=15000
+            )
+        except Exception:
+            pass
         await self._scroll_to_load(page, "span.a-price", max_attempts=4)
 
         items = await page.query_selector_all('div[data-component-type="s-search-result"]')
@@ -63,7 +72,9 @@ class AmazonDeSpider(PlaywrightSpider):
 
             title_el = await item.query_selector("a.a-link-normal.s-line-clamp-2")
             if not title_el:
-                title_el = await item.query_selector("h2 a span")
+                title_el = await item.query_selector("a.a-link-normal h2 span")
+            if not title_el:
+                title_el = await item.query_selector("h2 span")
             title = await title_el.inner_text() if title_el else None
             if not title:
                 continue

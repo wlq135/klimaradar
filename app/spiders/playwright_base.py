@@ -110,6 +110,10 @@ class PlaywrightSpider(Spider):
         await context.add_init_script(_STEALTH_INIT_SCRIPT)
         return context
 
+    async def _pre_navigate(self, context: BrowserContext) -> None:
+        """Optional hook to set cookies / session state before loading the page."""
+        return None
+
     async def fetch_listings(
         self, query: str, product_type: str | None = None
     ) -> list[ListingSnapshot]:
@@ -125,6 +129,7 @@ class PlaywrightSpider(Spider):
             context = await self._prepare_context(browser)
             page = await context.new_page()
             try:
+                await self._pre_navigate(context)
                 url = self._build_search_url(query)
                 await page.goto(url, wait_until="domcontentloaded", timeout=60000)
                 listings = await self._extract_listings(page, product_type)

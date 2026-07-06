@@ -26,6 +26,8 @@ class MediaMarktDeSpider(PlaywrightSpider):
     def search_url_template(self) -> str:
         return "https://www.mediamarkt.de/de/search.html?query={query}"
 
+    default_query: str = "mobiles klimagerät"
+
     async def _extract_listings(
         self, page: Page, product_type: str | None = None
     ) -> list[ListingSnapshot]:

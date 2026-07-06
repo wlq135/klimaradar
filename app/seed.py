@@ -21,6 +21,12 @@ async def seed_retailers(session: AsyncSession) -> None:
             affiliate_network="amazon_associates",
         ),
         Retailer(
+            name="Amazon France",
+            country="FR",
+            domain="https://www.amazon.fr",
+            affiliate_network="amazon_associates",
+        ),
+        Retailer(
             name="MediaMarkt Germany",
             country="DE",
             domain="https://www.mediamarkt.de",

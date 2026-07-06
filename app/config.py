@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     enable_demo: bool = False
 
     amazon_de_affiliate_tag: str = ""
+    amazon_fr_affiliate_tag: str = ""
     mediamarkt_de_affiliate_tag: str = ""
     boulanger_fr_affiliate_tag: str = ""
     darty_fr_affiliate_tag: str = ""

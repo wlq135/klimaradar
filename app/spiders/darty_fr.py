@@ -28,6 +28,8 @@ class DartyFrSpider(PlaywrightSpider):
     def search_url_template(self) -> str:
         return "https://www.darty.com/nav/recherche?p={query}"
 
+    default_query: str = "climatiseur portable"
+
     async def _extract_listings(
         self, page: Page, product_type: str | None = None
     ) -> list[ListingSnapshot]:

@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.spiders.amazon_de import AmazonDeSpider
+from app.spiders.amazon_fr import AmazonFrSpider
 from app.spiders.boulanger_fr import BoulangerFrSpider
 from app.spiders.darty_fr import DartyFrSpider
 
@@ -125,3 +126,32 @@ async def test_darty_positive_signal_is_in_stock():
         )
         == "in_stock"
     )
+
+
+@pytest.mark.asyncio
+async def test_amazon_fr_unavailable_phrases_are_out_of_stock():
+    cases = [
+        "Actuellement indisponible",
+        "Aucune offre mise en avant",
+        "Aucune offre disponible",
+        "En rupture de stock",
+    ]
+    for text in cases:
+        assert (
+            await AmazonFrSpider._infer_stock_status(_card(text), 199.99)
+            == "out_of_stock"
+        )
+
+
+@pytest.mark.asyncio
+async def test_amazon_fr_positive_availability_signals_are_in_stock():
+    cases = [
+        "Climatiseur\n199 €\nPrime\nLivraison demain",
+        "Climatiseur\nEn stock\n199 €",
+        "Climatiseur\nDisponible\n199 €",
+    ]
+    for text in cases:
+        assert (
+            await AmazonFrSpider._infer_stock_status(_card(text), 199.0)
+            == "in_stock"
+        )

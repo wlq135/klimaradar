@@ -26,6 +26,8 @@ class BoulangerFrSpider(PlaywrightSpider):
         # Boulanger search URL; their category listing URL is more stable.
         return "https://www.boulanger.com/resultats?recherche={query}"
 
+    default_query: str = "climatiseur portable"
+
     async def _extract_listings(
         self, page: Page, product_type: str | None = None
     ) -> list[ListingSnapshot]:

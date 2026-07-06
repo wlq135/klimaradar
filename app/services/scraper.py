@@ -36,10 +36,12 @@ async def run_scrape(country: str | None = None) -> dict[str, dict]:
             return {}
 
         results: dict[str, dict] = {}
+        base_query = "portable air conditioner"
         for spider in spiders:
             try:
+                query = getattr(spider, "default_query", base_query)
                 snapshots = await spider.fetch_listings(
-                    query="portable air conditioner",
+                    query=query,
                     product_type="portable",
                 )
                 stats = await upsert_listings(

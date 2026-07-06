@@ -5,6 +5,7 @@ Each entry maps a retailer name/country to a concrete spider implementation.
 
 from app.config import settings
 from app.spiders.amazon_de import AmazonDeSpider
+from app.spiders.amazon_fr import AmazonFrSpider
 from app.spiders.boulanger_fr import BoulangerFrSpider
 from app.spiders.base import Spider
 from app.spiders.darty_fr import DartyFrSpider
@@ -39,6 +40,8 @@ _GENERIC_SPIDERS: list[dict] = [
 def _affiliate_tag_for(country: str, retailer_name: str) -> str | None:
     if retailer_name == "Amazon Germany":
         return settings.amazon_de_affiliate_tag
+    if retailer_name == "Amazon France":
+        return settings.amazon_fr_affiliate_tag
     if retailer_name == "MediaMarkt Germany":
         return settings.mediamarkt_de_affiliate_tag
     if retailer_name == "Boulanger France":
@@ -70,6 +73,7 @@ def get_spiders_for_country(
     playwright_spiders: list[tuple[str, str, type[Spider]]] = [
         ("DE", "Amazon Germany", AmazonDeSpider),
         ("DE", "MediaMarkt Germany", MediaMarktDeSpider),
+        ("FR", "Amazon France", AmazonFrSpider),
         ("FR", "Boulanger France", BoulangerFrSpider),
         ("FR", "Darty France", DartyFrSpider),
     ]
