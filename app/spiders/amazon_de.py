@@ -79,7 +79,7 @@ class AmazonDeSpider(PlaywrightSpider):
             price = self._parse_price_text(price_text)
             currency = self._infer_currency(price_text)
 
-            stock_status = await self._infer_stock_status(item)
+            stock_status = await self._infer_stock_status(item, price)
 
             snapshots.append(
                 ListingSnapshot(
@@ -117,14 +117,27 @@ class AmazonDeSpider(PlaywrightSpider):
         return "EUR"
 
     @staticmethod
-    async def _infer_stock_status(item) -> str:
+    async def _infer_stock_status(item, price: float | None) -> str:
+        """Infer stock status from the search-result card.
+
+        Amazon search results are noisy, so we are conservative:
+        - Explicit unavailable phrases -> out_of_stock
+        - A price is present and no unavailable phrase -> in_stock
+        - Everything else -> unknown (avoids false "in stock" claims)
+        """
         text = await item.inner_text()
         lower = text.lower()
-        if "derzeit nicht verfügbar" in lower or "temporär nicht verfügbar" in lower:
+        unavailable_markers = [
+            "derzeit nicht verfügbar",
+            "temporär nicht verfügbar",
+            "nicht verfügbar",
+            "nicht auf lager",
+            "currently unavailable",
+            "kein angebot",
+        ]
+        if any(marker in lower for marker in unavailable_markers):
             return "out_of_stock"
-        if "nicht auf lager" in lower:
-            return "out_of_stock"
-        if any(marker in lower for marker in ["auf lager", "lieferung", "prime", "kostenlose", "optionen anzeigen"]):
+        if price is not None:
             return "in_stock"
         return "unknown"
 
