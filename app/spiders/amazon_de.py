@@ -122,7 +122,8 @@ class AmazonDeSpider(PlaywrightSpider):
 
         Amazon search results are noisy, so we are conservative:
         - Explicit unavailable phrases -> out_of_stock
-        - A price is present and no unavailable phrase -> in_stock
+        - A price is present, no unavailable phrase, and a positive
+          availability signal (e.g. "Lieferung", "Auf Lager", "Prime") -> in_stock
         - Everything else -> unknown (avoids false "in stock" claims)
         """
         text = await item.inner_text()
@@ -132,12 +133,43 @@ class AmazonDeSpider(PlaywrightSpider):
             "temporär nicht verfügbar",
             "nicht verfügbar",
             "nicht auf lager",
+            "nicht lieferbar",
+            "nicht mehr verfügbar",
+            "ausverkauft",
+            "vergriffen",
             "currently unavailable",
+            "temporarily out of stock",
+            "out of stock",
+            "sold out",
             "kein angebot",
+            "keine angebote verfügbar",
+            "keine hervorgehobenen angebote",
+            "no offers",
+            "no featured offers",
+            "unavailable",
         ]
         if any(marker in lower for marker in unavailable_markers):
             return "out_of_stock"
-        if price is not None:
+
+        if price is None:
+            return "unknown"
+
+        # A price alone is not enough; require an explicit positive signal.
+        positive_markers = [
+            "auf lager",
+            "lieferbar",
+            "versandt",
+            "versand",
+            "lieferung",
+            "prime",
+            "morgen",
+            "heute",
+            "sofort",
+            "gewöhnlich versandfertig",
+            "in stock",
+            "available",
+        ]
+        if any(marker in lower for marker in positive_markers):
             return "in_stock"
         return "unknown"
 

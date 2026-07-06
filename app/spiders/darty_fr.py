@@ -84,7 +84,7 @@ class DartyFrSpider(PlaywrightSpider):
             )
             img_url = await img_el.get_attribute("src") if img_el else None
 
-            stock_status = "in_stock" if price is not None else "unknown"
+            stock_status = await self._infer_stock_status(card, price)
 
             snapshots.append(
                 ListingSnapshot(
@@ -119,3 +119,37 @@ class DartyFrSpider(PlaywrightSpider):
             return float(digits)
         except ValueError:
             return None
+
+    @staticmethod
+    async def _infer_stock_status(card, price: float | None) -> str:
+        """Infer stock status from the product card text.
+
+        Darty cards may display a price even when the item is unavailable, so we
+        require explicit availability signals rather than assuming price == stock.
+        """
+        text = await card.inner_text()
+        lower = text.lower()
+        unavailable_markers = [
+            "indisponible",
+            "rupture de stock",
+            "en rupture",
+            "épuisé",
+            "non disponible",
+            "produit épuisé",
+        ]
+        if any(marker in lower for marker in unavailable_markers):
+            return "out_of_stock"
+
+        if price is None:
+            return "unknown"
+
+        positive_markers = [
+            "en stock",
+            "disponible",
+            "livraison",
+            "retrait",
+            "expédié",
+        ]
+        if any(marker in lower for marker in positive_markers):
+            return "in_stock"
+        return "unknown"

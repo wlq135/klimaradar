@@ -80,11 +80,12 @@ class GenericHtmlSpider(Spider):
         if not text:
             return "unknown"
         lowered = text.lower()
-        if any(word in lowered for word in config.get("in_stock_words", ["in stock", "available", "auf lager"])):
+        # Default to unknown unless the retailer config explicitly lists markers.
+        if any(word in lowered for word in config.get("in_stock_words", [])):
             return "in_stock"
-        if any(word in lowered for word in config.get("out_of_stock_words", ["out of stock", "unavailable", "nicht verfügbar"])):
+        if any(word in lowered for word in config.get("out_of_stock_words", [])):
             return "out_of_stock"
-        if any(word in lowered for word in config.get("back_order_words", ["back order", "back-order", "vorbestellung"])):
+        if any(word in lowered for word in config.get("back_order_words", [])):
             return "back_order"
         return "unknown"
 
