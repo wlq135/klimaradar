@@ -1,5 +1,6 @@
 """Base Playwright spider with common launch, scroll and extraction helpers."""
 
+import logging
 from abc import abstractmethod
 
 from playwright.async_api import BrowserContext, Page, async_playwright
@@ -7,6 +8,7 @@ from playwright.async_api import BrowserContext, Page, async_playwright
 from app.config import settings
 from app.spiders.base import ListingSnapshot, Spider
 
+logger = logging.getLogger(__name__)
 
 # JavaScript injected into every page before any navigation. It removes the most
 # common headless fingerprints and makes Playwright look like a regular Chromium
@@ -85,14 +87,30 @@ class PlaywrightSpider(Spider):
         """Parse the rendered page and return normalized snapshots."""
 
     def _proxy_config(self) -> dict | None:
-        """Return Playwright proxy options when PLAYWRIGHT_PROXY_SERVER is set."""
+        """Return Playwright proxy options when PLAYWRIGHT_PROXY_SERVER is set.
+
+        If PLAYWRIGHT_PROXY_RETAILERS is set, the proxy is only used for spiders
+        whose name appears in the comma-separated list. This avoids routing
+        already-working spiders (e.g. Amazon) through a paid proxy.
+        """
         if not settings.playwright_proxy_server:
             return None
+
+        allowed = {
+            name.strip()
+            for name in settings.playwright_proxy_retailers.split(",")
+            if name.strip()
+        }
+        if allowed and self.name not in allowed:
+            logger.debug("Proxy skipped for %s (not in PLAYWRIGHT_PROXY_RETAILERS)", self.name)
+            return None
+
         proxy: dict = {"server": settings.playwright_proxy_server}
         if settings.playwright_proxy_username:
             proxy["username"] = settings.playwright_proxy_username
         if settings.playwright_proxy_password:
             proxy["password"] = settings.playwright_proxy_password
+        logger.debug("Using proxy for %s", self.name)
         return proxy
 
     async def _prepare_context(self, browser) -> BrowserContext:

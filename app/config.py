@@ -44,9 +44,13 @@ class Settings(BaseSettings):
     # Playwright proxy (optional). Set PLAYWRIGHT_PROXY_SERVER to route traffic
     # through an HTTP proxy. Credentials are only required when the proxy needs
     # authentication (e.g. Bright Data, ScrapingBee residential proxies).
+    # PLAYWRIGHT_PROXY_RETAILERS is a comma-separated list of spider names; when
+    # set, only those retailers will use the proxy (e.g. "Boulanger France,Darty
+    # France"). Leave empty to apply the proxy to all Playwright spiders.
     playwright_proxy_server: str = ""
     playwright_proxy_username: str = ""
     playwright_proxy_password: str = ""
+    playwright_proxy_retailers: str = ""
 
     scraper_interval_minutes: int = 10
     request_timeout_seconds: int = 30
