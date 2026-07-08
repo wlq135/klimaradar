@@ -129,14 +129,28 @@ async function submitAlert(event) {
   if (data.min_btu) data.min_btu = parseInt(data.min_btu, 10);
   if (data.max_price) data.max_price = parseFloat(data.max_price);
 
-  const res = await fetch('/api/alerts/subscribe', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(data)
-  });
-  const json = await res.json();
-  document.getElementById('alert-message').textContent = json.message;
-  if (res.ok) form.reset();
+  const messageEl = document.getElementById('alert-message');
+  messageEl.textContent = 'Sending...';
+  try {
+    const res = await fetch('/api/alerts/subscribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(data)
+    });
+    let json;
+    try {
+      json = await res.json();
+    } catch (parseErr) {
+      json = { detail: 'Unexpected server response. Please try again.' };
+    }
+    messageEl.textContent = json.message || json.detail || 'Something went wrong.';
+    if (res.ok) form.reset();
+  } catch (err) {
+    messageEl.textContent = 'Network error. Please check your connection and try again.';
+  }
 }
 </script>
 {% endblock %}

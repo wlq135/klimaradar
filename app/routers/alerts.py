@@ -1,5 +1,6 @@
 """Alert subscription API."""
 
+import logging
 import secrets
 import uuid
 
@@ -17,6 +18,7 @@ from app.schemas import AlertSubscriptionCreate
 from app.services.alerter import get_email_backend
 from app.templating import templates
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/alerts")
 
 
@@ -85,7 +87,14 @@ async def subscribe(
       </body>
     </html>
     """.strip()
-    await backend.send(payload.email, subject, body)
+    try:
+        await backend.send(payload.email, subject, body)
+    except Exception as exc:
+        logger.exception("Failed to send confirmation email to %s: %s", payload.email, exc)
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to send confirmation email. Please try again later.",
+        )
 
     return {
         "message": "Please check your email to confirm the alert.",
