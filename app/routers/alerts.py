@@ -30,6 +30,33 @@ def _generate_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+async def _send_confirmation_email(to_email: str, token: str) -> bool:
+    """Send a double opt-in confirmation email."""
+    backend = get_email_backend()
+    confirm_url = f"{settings.base_url}/api/alerts/confirm?token={token}"
+    subject = "Confirm your KlimaRadar AC alert"
+    body = f"""
+    <html>
+      <body>
+        <h2>Almost done — confirm your alert</h2>
+        <p>Click the button below to start receiving AC stock alerts:</p>
+        <p>
+          <a href="{confirm_url}"
+             style="padding:10px 15px;background:#16a34a;color:#fff;text-decoration:none;border-radius:5px;">
+            Confirm my alert
+          </a>
+        </p>
+        <p style="font-size:12px;color:#666;">If you didn't request this, ignore it.</p>
+      </body>
+    </html>
+    """.strip()
+    try:
+        return await backend.send(to_email, subject, body)
+    except Exception:
+        logger.exception("Failed to send confirmation email to %s", to_email)
+        return False
+
+
 @router.post("/subscribe")
 async def subscribe(
     payload: AlertSubscriptionCreate,
@@ -50,6 +77,21 @@ async def subscribe(
     )
     existing = await session.scalar(stmt)
     if existing:
+        if not existing.verified:
+            # Resend the confirmation email so the user can activate the alert.
+            existing.verification_token = _generate_token()
+            await session.commit()
+            success = await _send_confirmation_email(
+                existing.email, existing.verification_token
+            )
+            if not success:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Unable to send confirmation email. Please try again later.",
+                )
+            return {
+                "message": "Confirmation email resent. Please check your inbox and click the link to activate."
+            }
         return {
             "message": "You already have an active alert for this country."
         }
@@ -68,36 +110,8 @@ async def subscribe(
     session.add(sub)
     await session.commit()
 
-    # Send confirmation email.
-    backend = get_email_backend()
-    confirm_url = f"{settings.base_url}/api/alerts/confirm?token={token}"
-    subject = "Confirm your KlimaRadar AC alert"
-    body = f"""
-    <html>
-      <body>
-        <h2>Almost done — confirm your alert</h2>
-        <p>Click the button below to start receiving AC stock alerts:</p>
-        <p>
-          <a href="{confirm_url}"
-             style="padding:10px 15px;background:#16a34a;color:#fff;text-decoration:none;border-radius:5px;">
-            Confirm my alert
-          </a>
-        </p>
-        <p style="font-size:12px;color:#666;">If you didn't request this, ignore it.</p>
-      </body>
-    </html>
-    """.strip()
-    try:
-        success = await backend.send(payload.email, subject, body)
-    except Exception as exc:
-        logger.exception("Failed to send confirmation email to %s: %s", payload.email, exc)
-        raise HTTPException(
-            status_code=500,
-            detail="Unable to send confirmation email. Please try again later.",
-        )
-
+    success = await _send_confirmation_email(payload.email, token)
     if not success:
-        logger.error("Email backend returned failure for %s", payload.email)
         raise HTTPException(
             status_code=500,
             detail="Unable to send confirmation email. Please try again later.",
