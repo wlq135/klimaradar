@@ -88,9 +88,16 @@ async def subscribe(
     </html>
     """.strip()
     try:
-        await backend.send(payload.email, subject, body)
+        success = await backend.send(payload.email, subject, body)
     except Exception as exc:
         logger.exception("Failed to send confirmation email to %s: %s", payload.email, exc)
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to send confirmation email. Please try again later.",
+        )
+
+    if not success:
+        logger.error("Email backend returned failure for %s", payload.email)
         raise HTTPException(
             status_code=500,
             detail="Unable to send confirmation email. Please try again later.",
