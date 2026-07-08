@@ -126,8 +126,18 @@ async function submitAlert(event) {
   const form = event.target;
   const data = Object.fromEntries(new FormData(form));
   data.in_stock_only = data.in_stock_only === 'true';
-  if (data.min_btu) data.min_btu = parseInt(data.min_btu, 10);
-  if (data.max_price) data.max_price = parseFloat(data.max_price);
+
+  // Drop empty optional fields so the backend doesn't see "" for int/float fields.
+  for (const key of ['city', 'min_btu', 'max_price']) {
+    const value = data[key];
+    if (value === '' || value === undefined || value === null) {
+      delete data[key];
+    } else if (key === 'min_btu') {
+      data[key] = parseInt(value, 10);
+    } else if (key === 'max_price') {
+      data[key] = parseFloat(value);
+    }
+  }
 
   const messageEl = document.getElementById('alert-message');
   messageEl.textContent = 'Sending...';
@@ -146,7 +156,7 @@ async function submitAlert(event) {
     } catch (parseErr) {
       json = { detail: 'Unexpected server response. Please try again.' };
     }
-    messageEl.textContent = json.message || json.detail || 'Something went wrong.';
+    messageEl.textContent = json.detail || json.message || 'Something went wrong.';
     if (res.ok) form.reset();
   } catch (err) {
     messageEl.textContent = 'Network error. Please check your connection and try again.';

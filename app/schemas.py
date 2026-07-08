@@ -1,6 +1,6 @@
 """Pydantic schemas for API requests/responses."""
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class ProductBase(BaseModel):
@@ -87,6 +87,18 @@ class AlertSubscriptionCreate(BaseModel):
     min_btu: int | None = None
     max_price: float | None = None
     in_stock_only: bool = True
+
+    @field_validator("city", "product_type", mode="before")
+    @classmethod
+    def _blank_to_none(cls, value):
+        return None if value == "" else value
+
+    @field_validator("min_btu", "max_price", mode="before")
+    @classmethod
+    def _blank_numeric_to_none(cls, value):
+        if value == "" or value is None:
+            return None
+        return value
 
 
 class AlertSubscriptionOut(BaseModel):
