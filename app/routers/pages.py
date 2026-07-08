@@ -5,7 +5,7 @@ import hashlib
 import logging
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -78,6 +78,36 @@ def _is_safe_redirect_target(target: str, retailer: Retailer) -> bool:
     if not retailer_host:
         return False
     return target_host == retailer_host or target_host.endswith("." + retailer_host)
+
+
+def _empty_to_none(value: str | None) -> str | None:
+    return value.strip() if value and value.strip() else None
+
+
+def _int_or_none(value: str | None) -> int | None:
+    value = _empty_to_none(value)
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def _float_or_none(value: str | None) -> float | None:
+    value = _empty_to_none(value)
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
+def _bool_from_param(value: str | None) -> bool:
+    if value is None:
+        return False
+    return value.lower() in ("true", "1", "on", "yes")
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -175,21 +205,24 @@ async def terms(request: Request):
 async def search(
     request: Request,
     country: str = "DE",
-    city: str | None = None,
-    product_type: str | None = "portable",
-    min_btu: int | None = None,
-    max_price: float | None = None,
-    in_stock_only: bool = False,
-    q: str | None = None,
+    city_raw: str | None = Query(None, alias="city"),
+    product_type_raw: str | None = Query(None, alias="product_type"),
+    min_btu_raw: str | None = Query(None, alias="min_btu"),
+    max_price_raw: str | None = Query(None, alias="max_price"),
+    in_stock_only_raw: str | None = Query(None, alias="in_stock_only"),
+    q_raw: str | None = Query(None, alias="q"),
     session: AsyncSession = Depends(get_db),
 ):
+    city = _empty_to_none(city_raw)
+    product_type = _empty_to_none(product_type_raw) or "portable"
+    q = _empty_to_none(q_raw)
     filters = SearchFilters(
         country=country,
         city=city,
         product_type=product_type,
-        min_btu=min_btu,
-        max_price=max_price,
-        in_stock_only=in_stock_only,
+        min_btu=_int_or_none(min_btu_raw),
+        max_price=_float_or_none(max_price_raw),
+        in_stock_only=_bool_from_param(in_stock_only_raw),
         q=q,
     )
     listings = await _fetch_filtered_listings(session, filters)

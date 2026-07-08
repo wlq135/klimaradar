@@ -5,7 +5,9 @@ from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from app.database import AsyncSessionLocal
 from app.models import Listing, PriceHistory, Product, Retailer
 from app.services.affiliate import tag_url
 from app.services.alerter import notify_subscribers_for_listing
@@ -24,6 +26,7 @@ async def upsert_listings(
         A counter dict with keys: created, updated, back_in_stock, price_dropped.
     """
     stats = {"created": 0, "updated": 0, "back_in_stock": 0, "price_dropped": 0}
+    alert_events: list[tuple[str, int]] = []
 
     retailer = await session.get(Retailer, retailer_id)
     if not retailer:
@@ -64,17 +67,18 @@ async def upsert_listings(
         )
         session.add(history)
 
-        # Detect meaningful events.
+        # Detect meaningful events but do not send emails yet; we want to commit
+        # the listing changes before holding the DB lock during SMTP sends.
         if previous_status != "in_stock" and listing.stock_status == "in_stock":
             stats["back_in_stock"] += 1
-            await notify_subscribers_for_listing(session, listing, "back in stock")
+            alert_events.append(("back in stock", listing.id))
         elif (
             previous_price is not None
             and listing.price is not None
             and listing.price < previous_price
         ):
             stats["price_dropped"] += 1
-            await notify_subscribers_for_listing(session, listing, "on sale")
+            alert_events.append(("on sale", listing.id))
 
         if is_new:
             stats["created"] += 1
@@ -82,6 +86,29 @@ async def upsert_listings(
             stats["updated"] += 1
 
     await session.commit()
+
+    # Send alert emails outside the main transaction so a slow SMTP relay
+    # does not hold the SQLite lock and block web requests.
+    for event_type, listing_id in alert_events:
+        try:
+            async with AsyncSessionLocal() as alert_session:
+                listing_obj = await alert_session.scalar(
+                    select(Listing)
+                    .where(Listing.id == listing_id)
+                    .options(
+                        selectinload(Listing.product),
+                        selectinload(Listing.retailer),
+                    )
+                )
+                if listing_obj:
+                    await notify_subscribers_for_listing(
+                        alert_session, listing_obj, event_type
+                    )
+        except Exception:
+            logger.exception(
+                "Failed to send %s alerts for listing %s", event_type, listing_id
+            )
+
     return stats
 
 
