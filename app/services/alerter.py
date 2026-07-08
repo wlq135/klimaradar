@@ -109,11 +109,59 @@ class SmtpEmailBackend(EmailBackend):
             return False
 
 
+class BrevoApiEmailBackend(EmailBackend):
+    """Sends email via the Brevo v3 transactional email API.
+
+    This is a useful fallback when Brevo's SMTP relay is not yet activated
+    on a new account.
+    """
+
+    def __init__(self, api_key: str, from_email: str):
+        self.api_key = api_key
+        self.from_email = from_email
+
+    async def send(self, to_email: str, subject: str, body: str) -> bool:
+        try:
+            import httpx
+        except ImportError:  # pragma: no cover
+            logger.error("httpx package not installed")
+            return False
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.brevo.com/v3/smtp/email",
+                    headers={
+                        "api-key": self.api_key,
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                    },
+                    json={
+                        "sender": {"name": "KlimaRadar", "email": self.from_email},
+                        "to": [{"email": to_email}],
+                        "subject": subject,
+                        "htmlContent": body,
+                    },
+                    timeout=30,
+                )
+            if response.is_success:
+                return True
+            logger.error(
+                "Brevo API returned %s: %s", response.status_code, response.text
+            )
+            return False
+        except Exception as exc:  # pragma: no cover
+            logger.exception("Failed to send email via Brevo API: %s", exc)
+            return False
+
+
 def get_email_backend() -> EmailBackend:
     """Return the configured email backend.
 
-    Priority: SMTP > SendGrid > console fallback.
+    Priority: Brevo API > SMTP > SendGrid > console fallback.
     """
+    if settings.brevo_api_key:
+        return BrevoApiEmailBackend(settings.brevo_api_key, settings.from_email)
     if settings.smtp_host and settings.smtp_user and settings.smtp_password:
         return SmtpEmailBackend(
             settings.smtp_host,

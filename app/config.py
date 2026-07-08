@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     sendgrid_api_key: str = ""
     from_email: str = "alerts@klima-radar.com"
 
+    # Brevo API key (v3 /smtp/email) — useful when SMTP is not yet activated.
+    # If set, it takes precedence over the SMTP backend.
+    brevo_api_key: str = ""
+
     # SMTP email backend (e.g. Brevo, Mailgun, AWS SES). If SMTP_HOST is set,
     # it takes precedence over SendGrid.
     smtp_host: str = ""

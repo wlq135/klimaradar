@@ -15,6 +15,8 @@ services:
         sync: false
       - key: FROM_EMAIL
         value: alerts@klima-radar.com
+      - key: BREVO_API_KEY
+        sync: false
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
