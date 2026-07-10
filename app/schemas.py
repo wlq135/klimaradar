@@ -132,3 +132,24 @@ class StatsOut(BaseModel):
     in_stock_listings: int
     active_subscriptions: int
     countries: list[str]
+
+
+class FeedbackCreate(BaseModel):
+    name: str | None = None
+    email: EmailStr | None = None
+    message: str = Field(..., min_length=5, max_length=5000)
+    page_url: str | None = None
+
+    @field_validator("name", "page_url", mode="before")
+    @classmethod
+    def _blank_to_none(cls, value):
+        return None if value == "" else value
+
+    @field_validator("message", mode="before")
+    @classmethod
+    def _strip_message(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+        if not value:
+            raise ValueError("Message is required")
+        return value

@@ -13,7 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import settings
 from app.database import engine
 from app.models import Base, Retailer
-from app.routers import alerts, pages
+from app.routers import alerts, feedback, pages
 from app.templating import templates
 from app.cloudflare import is_cloudflare_request
 
@@ -143,3 +143,4 @@ async def generic_exception_handler(request, exc):
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(pages.router)
 app.include_router(alerts.router)
+app.include_router(feedback.router)

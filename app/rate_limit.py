@@ -48,3 +48,6 @@ subscribe_limiter = RateLimiter(max_requests=5, window_seconds=60)
 
 # 10 admin scrape calls per minute per IP.
 admin_scrape_limiter = RateLimiter(max_requests=10, window_seconds=60)
+
+# 3 feedback submissions per minute per IP.
+feedback_limiter = RateLimiter(max_requests=3, window_seconds=60)
