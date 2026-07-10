@@ -111,7 +111,7 @@ def _bool_from_param(value: str | None) -> bool:
     return value.lower() in ("true", "1", "on", "yes")
 
 
-@router.get("/", response_class=HTMLResponse)
+@router.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def index(request: Request, session: AsyncSession = Depends(get_db)):
     stats = await _get_stats(session)
     return templates.TemplateResponse(
@@ -126,7 +126,7 @@ async def index(request: Request, session: AsyncSession = Depends(get_db)):
     )
 
 
-@router.get("/robots.txt", response_class=PlainTextResponse)
+@router.api_route("/robots.txt", methods=["GET", "HEAD"], response_class=PlainTextResponse)
 async def robots_txt():
     base = settings.base_url.rstrip("/")
     return PlainTextResponse(
@@ -135,7 +135,7 @@ async def robots_txt():
     )
 
 
-@router.get("/sitemap.xml")
+@router.api_route("/sitemap.xml", methods=["GET", "HEAD"])
 async def sitemap_xml():
     base = settings.base_url.rstrip("/")
     today = datetime.now(timezone.utc).date().isoformat()
@@ -163,7 +163,7 @@ async def sitemap_xml():
     return Response(content="\n".join(lines), media_type="application/xml")
 
 
-@router.get("/privacy", response_class=HTMLResponse)
+@router.api_route("/privacy", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def privacy(request: Request):
     return templates.TemplateResponse(
         request,
@@ -176,7 +176,7 @@ async def privacy(request: Request):
     )
 
 
-@router.get("/about", response_class=HTMLResponse)
+@router.api_route("/about", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def about(request: Request):
     return templates.TemplateResponse(
         request,
@@ -189,7 +189,7 @@ async def about(request: Request):
     )
 
 
-@router.get("/terms", response_class=HTMLResponse)
+@router.api_route("/terms", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def terms(request: Request):
     return templates.TemplateResponse(
         request,
@@ -202,7 +202,7 @@ async def terms(request: Request):
     )
 
 
-@router.get("/search", response_class=HTMLResponse)
+@router.api_route("/search", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def search(
     request: Request,
     country: str = "DE",
@@ -246,7 +246,11 @@ async def search(
     )
 
 
-@router.get("/{country}/{city}/portable-ac-in-stock", response_class=HTMLResponse)
+@router.api_route(
+    "/{country}/{city}/portable-ac-in-stock",
+    methods=["GET", "HEAD"],
+    response_class=HTMLResponse,
+)
 async def city_seo_page(
     request: Request,
     country: str,

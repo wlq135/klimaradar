@@ -98,6 +98,7 @@ async def http_exception_handler(request, exc):
                 "title": f"Error {exc.status_code}",
                 "status_code": exc.status_code,
                 "detail": exc.detail,
+                "settings": settings,
             },
             status_code=exc.status_code,
         )
@@ -110,7 +111,12 @@ async def validation_exception_handler(request, exc):
         return templates.TemplateResponse(
             request,
             "error.html",
-            {"title": "Bad request", "status_code": 400, "detail": "Invalid request."},
+            {
+                "title": "Bad request",
+                "status_code": 400,
+                "detail": "Invalid request.",
+                "settings": settings,
+            },
             status_code=400,
         )
     return JSONResponse({"detail": "Invalid request"}, status_code=400)
@@ -127,6 +133,7 @@ async def generic_exception_handler(request, exc):
                 "title": "Server error",
                 "status_code": 500,
                 "detail": "Something went wrong. Please try again later.",
+                "settings": settings,
             },
             status_code=500,
         )
