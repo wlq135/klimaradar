@@ -137,10 +137,10 @@ class StatsOut(BaseModel):
 class FeedbackCreate(BaseModel):
     name: str | None = None
     email: EmailStr | None = None
-    message: str = Field(..., min_length=5, max_length=5000)
+    message: str = Field(..., min_length=2, max_length=5000)
     page_url: str | None = None
 
-    @field_validator("name", "page_url", mode="before")
+    @field_validator("name", "email", "page_url", mode="before")
     @classmethod
     def _blank_to_none(cls, value):
         return None if value == "" else value

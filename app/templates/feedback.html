@@ -61,7 +61,11 @@ async function submitFeedback(event) {
       messageEl.className = 'text-sm text-green-600';
       form.reset();
     } else {
-      messageEl.textContent = json.detail || 'Something went wrong. Please try again.';
+      let detail = json.detail;
+      if (Array.isArray(detail) && detail.length > 0) {
+        detail = detail[0].msg || detail[0].type || JSON.stringify(detail[0]);
+      }
+      messageEl.textContent = detail || 'Something went wrong. Please try again.';
       messageEl.className = 'text-sm text-red-600';
     }
   } catch (err) {
