@@ -147,6 +147,7 @@ async def confirm(
             "title": "Alert confirmed",
             "success": True,
             "message": "You're subscribed! We'll email you when matching ACs are in stock.",
+            "token": token,
         },
     )
 
@@ -176,3 +177,43 @@ async def unsubscribe(
             "message": "You have been unsubscribed and will no longer receive alerts.",
         },
     )
+
+
+@router.post("/test/{token}")
+async def test_alert(
+    token: str,
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+):
+    """Send a test alert email to the subscription identified by its token."""
+    await subscribe_limiter.check(_client_ip(request))
+    stmt = select(AlertSubscription).where(
+        AlertSubscription.verification_token == token,
+        AlertSubscription.active.is_(True),
+        AlertSubscription.verified.is_(True),
+    )
+    sub = await session.scalar(stmt)
+    if not sub:
+        raise HTTPException(
+            status_code=404, detail="Active verified subscription not found"
+        )
+
+    backend = get_email_backend()
+    subject = "🌡️ KlimaRadar: test alert"
+    body = f"""
+    <html>
+      <body>
+        <h2>This is a test alert from KlimaRadar</h2>
+        <p>If you received this email, your alert subscription is working correctly.</p>
+        <p style="font-size:12px;color:#666;">
+          You subscribed to alerts for {sub.country}.
+          <br>
+          <a href="{settings.base_url}/api/alerts/unsubscribe?token={sub.verification_token}">Unsubscribe</a>
+        </p>
+      </body>
+    </html>
+    """.strip()
+    success = await backend.send(sub.email, subject, body)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to send test alert")
+    return {"message": f"Test alert sent to {sub.email}"}

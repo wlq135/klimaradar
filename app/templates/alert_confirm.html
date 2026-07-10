@@ -7,10 +7,34 @@
       <div class="text-5xl mb-4">{% if success %}✅{% else %}⚠️{% endif %}</div>
       <h1 class="text-2xl font-bold mb-2">{{ title }}</h1>
       <p class="text-slate-600">{{ message }}</p>
-      <a href="/" class="inline-block mt-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-6 py-3">
-        Back to home
-      </a>
+      {% if token %}
+      <p id="test-message" class="mt-4 text-sm text-slate-500"></p>
+      <button onclick="sendTestAlert('{{ token }}')" class="inline-block mt-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg px-6 py-2">
+        Send me a test alert
+      </button>
+      {% endif %}
+      <div class="mt-4">
+        <a href="/" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-6 py-3">
+          Back to home
+        </a>
+      </div>
     </div>
   </div>
 </section>
+
+{% if token %}
+<script>
+async function sendTestAlert(token) {
+  const el = document.getElementById('test-message');
+  el.textContent = 'Sending...';
+  try {
+    const res = await fetch('/api/alerts/test/' + token, { method: 'POST' });
+    const json = await res.json();
+    el.textContent = json.message || json.detail || 'Done.';
+  } catch (err) {
+    el.textContent = 'Failed to send test alert.';
+  }
+}
+</script>
+{% endif %}
 {% endblock %}
