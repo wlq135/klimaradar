@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     playwright_proxy_password: str = ""
     playwright_proxy_retailers: str = ""
 
-    scraper_interval_minutes: int = 30
+    scraper_interval_minutes: int = 60
     request_timeout_seconds: int = 30
     user_agent: str = (
         "Mozilla/5.0 (compatible; KlimaRadar/1.0; +https://klima-radar.com)"

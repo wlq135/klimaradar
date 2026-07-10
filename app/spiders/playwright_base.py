@@ -132,6 +132,17 @@ class PlaywrightSpider(Spider):
         """Optional hook to set cookies / session state before loading the page."""
         return None
 
+    async def _block_unnecessary_resources(self, page: Page) -> None:
+        """Abort image/font/media requests to lower memory and bandwidth usage."""
+
+        async def _route_handler(route) -> None:
+            if route.request.resource_type in {"image", "font", "media"}:
+                await route.abort()
+            else:
+                await route.continue_()
+
+        await page.route("**/*", _route_handler)
+
     async def fetch_listings(
         self, query: str, product_type: str | None = None
     ) -> list[ListingSnapshot]:
@@ -142,17 +153,21 @@ class PlaywrightSpider(Spider):
                     "--no-sandbox",
                     "--disable-setuid-sandbox",
                     "--disable-dev-shm-usage",
+                    "--disable-extensions",
+                    "--disable-gpu",
                 ],
             )
             context = await self._prepare_context(browser)
             page = await context.new_page()
             try:
+                await self._block_unnecessary_resources(page)
                 await self._pre_navigate(context)
                 url = self._build_search_url(query)
                 await page.goto(url, wait_until="domcontentloaded", timeout=60000)
                 listings = await self._extract_listings(page, product_type)
                 return listings
             finally:
+                await context.close()
                 await browser.close()
 
     @staticmethod
