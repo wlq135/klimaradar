@@ -15,6 +15,33 @@ class AmazonFrSpider(AmazonDeSpider):
     availability heuristics.
     """
 
+    _INCLUDE_TITLE_WORDS = [
+        "climatiseur",
+        "clim",
+        "air conditionné",
+        "air conditioner",
+        "air conditioning",
+        "monobloc",
+        "split",
+        "klima",
+    ]
+    _EXCLUDE_TITLE_WORDS = [
+        "laptop",
+        "ordinateur portable",
+        "pc",
+        "refroidisseur pc",
+        "refroidisseur",
+        "ventilateur",
+        "ventilo",
+        "fan",
+        "humidificateur",
+        "déshumidificateur",
+        "deshumidificateur",
+        "radiateur",
+        "chauffage",
+        "heater",
+    ]
+
     @property
     def name(self) -> str:
         return "Amazon France"
@@ -72,6 +99,9 @@ class AmazonFrSpider(AmazonDeSpider):
             if not title:
                 continue
 
+            if not self._is_relevant_title(title):
+                continue
+
             link_el = await item.query_selector("a.a-link-normal.s-no-outline")
             href = await link_el.get_attribute("href") if link_el else None
             url = urljoin("https://www.amazon.fr", href) if href else f"https://www.amazon.fr/dp/{asin}"
@@ -121,6 +151,7 @@ class AmazonFrSpider(AmazonDeSpider):
             "en rupture de stock",
             "rupture de stock",
             "épuisé",
+            "epuise",
             "non disponible",
             "plus disponible",
             "currently unavailable",
@@ -133,6 +164,7 @@ class AmazonFrSpider(AmazonDeSpider):
             "no offers",
             "no featured offers",
             "unavailable",
+            "il ne reste plus",
         ]
         if any(marker in lower for marker in unavailable_markers):
             return "out_of_stock"
@@ -150,8 +182,14 @@ class AmazonFrSpider(AmazonDeSpider):
             "aujourd'hui",
             "immédiat",
             "généralement expédié sous",
+            "generalement expedie sous",
             "in stock",
             "available",
+            "ajouter au panier",
+            "acheter maintenant",
+            "ajouter",
+            "buy now",
+            "add to basket",
         ]
         if any(marker in lower for marker in positive_markers):
             return "in_stock"

@@ -21,6 +21,36 @@ class AmazonDeSpider(PlaywrightSpider):
       status you may want to visit each product page.
     """
 
+    _INCLUDE_TITLE_WORDS = [
+        "klimagerät",
+        "klimaanlage",
+        "klima",
+        "air conditioner",
+        "air conditioning",
+        "monoblock",
+        "split",
+    ]
+    _EXCLUDE_TITLE_WORDS = [
+        "laptop",
+        "notebook",
+        "pc",
+        "cooling pad",
+        "kühlpad",
+        "kühler",
+        "lüfter",
+        "ventilator",
+        "fan",
+        "humidifier",
+        "luftbefeuchter",
+        "befeuchter",
+        "dehumidifier",
+        "luftentfeuchter",
+        "entfeuchter",
+        "heizlüfter",
+        "heizung",
+        "heater",
+    ]
+
     @property
     def name(self) -> str:
         return "Amazon Germany"
@@ -30,6 +60,13 @@ class AmazonDeSpider(PlaywrightSpider):
         return "https://www.amazon.de/s?k={query}"
 
     default_query: str = "mobiles klimagerät"
+
+    @classmethod
+    def _is_relevant_title(cls, title: str) -> bool:
+        lower = title.lower()
+        if any(word in lower for word in cls._EXCLUDE_TITLE_WORDS):
+            return False
+        return any(word in lower for word in cls._INCLUDE_TITLE_WORDS)
 
     async def _pre_navigate(self, context) -> None:
         # Amazon sometimes shows international USD offers unless a currency
@@ -77,6 +114,9 @@ class AmazonDeSpider(PlaywrightSpider):
                 title_el = await item.query_selector("h2 span")
             title = await title_el.inner_text() if title_el else None
             if not title:
+                continue
+
+            if not self._is_relevant_title(title):
                 continue
 
             link_el = await item.query_selector("a.a-link-normal.s-no-outline")
@@ -158,6 +198,8 @@ class AmazonDeSpider(PlaywrightSpider):
             "no offers",
             "no featured offers",
             "unavailable",
+            "nur noch",
+            "nur",
         ]
         if any(marker in lower for marker in unavailable_markers):
             return "out_of_stock"
@@ -179,6 +221,12 @@ class AmazonDeSpider(PlaywrightSpider):
             "gewöhnlich versandfertig",
             "in stock",
             "available",
+            "in den warenkorb",
+            "jetzt kaufen",
+            "sofort kaufen",
+            "kaufen",
+            "add to basket",
+            "buy now",
         ]
         if any(marker in lower for marker in positive_markers):
             return "in_stock"
