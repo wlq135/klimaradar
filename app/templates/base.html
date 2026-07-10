@@ -14,17 +14,7 @@
   {% endif %}
 
   {% if settings.plausible_domain %}
-  <script>
-    // Load Plausible unless the visitor has previously declined analytics.
-    // Plausible is cookie-free and privacy-friendly, so it is loaded by default.
-    if (localStorage.getItem("cookieConsent") !== "declined") {
-      var s = document.createElement("script");
-      s.defer = true;
-      s.setAttribute("data-domain", "{{ settings.plausible_domain }}");
-      s.src = "{{ settings.plausible_script_url }}";
-      document.head.appendChild(s);
-    }
-  </script>
+  <script defer data-domain="{{ settings.plausible_domain }}" src="{{ settings.plausible_script_url }}"></script>
   {% endif %}
 
   <!-- Open Graph -->
