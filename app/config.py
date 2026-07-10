@@ -45,6 +45,19 @@ class Settings(BaseSettings):
     boulanger_fr_affiliate_tag: str = ""
     darty_fr_affiliate_tag: str = ""
 
+    # Analytics (optional). Set PLAUSIBLE_DOMAIN to enable Plausible Analytics.
+    # Example: PLAUSIBLE_DOMAIN=klima-radar.com
+    plausible_domain: str = ""
+
+    # Plausible script URL. Use the exact snippet URL from your Plausible site
+    # settings (it may include extensions such as outbound-links). Defaults to the
+    # standard script if left empty.
+    plausible_script_url: str = "https://plausible.io/js/script.js"
+
+    # Google Search Console verification (optional). Paste the content of the
+    # meta tag here to inject <meta name="google-site-verification" content="...">.
+    google_site_verification: str = ""
+
     # Playwright proxy (optional). Set PLAYWRIGHT_PROXY_SERVER to route traffic
     # through an HTTP proxy. Credentials are only required when the proxy needs
     # authentication (e.g. Bright Data, ScrapingBee residential proxies).

@@ -8,15 +8,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.cloudflare import get_client_ip
 from app.config import settings
 from app.database import get_db
-from app.models import AlertSubscription, Listing
+from app.models import AlertSubscription
 from app.rate_limit import subscribe_limiter
 from app.schemas import AlertSubscriptionCreate
-from app.services.alerter import get_email_backend, notify_subscribers_for_listing
+from app.services.alerter import get_email_backend
 from app.templating import templates
 
 logger = logging.getLogger(__name__)
@@ -220,49 +219,3 @@ async def test_alert(
     return {"message": f"Test alert sent to {sub.email}"}
 
 
-@router.post("/simulate/{token}")
-async def simulate_stock_alert(
-    token: str,
-    request: Request,
-    session: AsyncSession = Depends(get_db),
-):
-    """Simulate a listing coming back in stock and trigger alert emails."""
-    await subscribe_limiter.check(_client_ip(request))
-    sub = await session.scalar(
-        select(AlertSubscription).where(
-            AlertSubscription.verification_token == token,
-            AlertSubscription.active.is_(True),
-            AlertSubscription.verified.is_(True),
-        )
-    )
-    if not sub:
-        raise HTTPException(
-            status_code=404, detail="Active verified subscription not found"
-        )
-
-    # Find any listing in the subscription's country to use as the simulated item.
-    listing = await session.scalar(
-        select(Listing)
-        .where(Listing.country == sub.country)
-        .options(selectinload(Listing.product), selectinload(Listing.retailer))
-        .limit(1)
-    )
-    if not listing:
-        raise HTTPException(
-            status_code=404, detail="No listing found for this country"
-        )
-
-    original_status = listing.stock_status
-    listing.stock_status = "in_stock"
-    await session.commit()
-
-    try:
-        await notify_subscribers_for_listing(session, listing, "back in stock")
-    finally:
-        # Revert the simulated change so the database stays consistent.
-        listing.stock_status = original_status
-        await session.commit()
-
-    return {
-        "message": f"Simulated stock alert for {sub.country}. Check your inbox."
-    }

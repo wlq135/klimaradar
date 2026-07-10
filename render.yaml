@@ -39,6 +39,12 @@ services:
         sync: false
       - key: DARTY_FR_AFFILIATE_TAG
         sync: false
+      - key: PLAUSIBLE_DOMAIN
+        sync: false
+      - key: PLAUSIBLE_SCRIPT_URL
+        sync: false
+      - key: GOOGLE_SITE_VERIFICATION
+        sync: false
       - key: PLAYWRIGHT_PROXY_SERVER
         sync: false
       - key: PLAYWRIGHT_PROXY_USERNAME

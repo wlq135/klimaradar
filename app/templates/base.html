@@ -9,6 +9,24 @@
 
   <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
 
+  {% if settings.google_site_verification %}
+  <meta name="google-site-verification" content="{{ settings.google_site_verification }}">
+  {% endif %}
+
+  {% if settings.plausible_domain %}
+  <script>
+    // Load Plausible unless the visitor has previously declined analytics.
+    // Plausible is cookie-free and privacy-friendly, so it is loaded by default.
+    if (localStorage.getItem("cookieConsent") !== "declined") {
+      var s = document.createElement("script");
+      s.defer = true;
+      s.setAttribute("data-domain", "{{ settings.plausible_domain }}");
+      s.src = "{{ settings.plausible_script_url }}";
+      document.head.appendChild(s);
+    }
+  </script>
+  {% endif %}
+
   <!-- Open Graph -->
   <meta property="og:title" content="{{ title }}">
   <meta property="og:description" content="{{ description|default('Find portable air conditioners in stock across Europe. KlimaRadar tracks real-time AC availability, prices and delivery times in Germany, France and beyond.') }}">
@@ -60,7 +78,7 @@
 
   <div id="cookie-banner" class="fixed bottom-0 left-0 right-0 bg-slate-900 text-white text-sm p-4 hidden">
     <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
-      <p>We use essential cookies for the site to work and optional analytics cookies to improve KlimaRadar. You can accept or decline analytics cookies below.</p>
+      <p>We use essential cookies for the site to work. We also use Plausible Analytics, which is cookie-free and does not store personal data.</p>
       <div class="flex gap-2">
         <button id="decline-cookies" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-md font-medium">Decline</button>
         <button id="accept-cookies" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium">Accept</button>

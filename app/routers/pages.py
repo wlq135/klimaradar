@@ -50,6 +50,7 @@ router = APIRouter()
 def _template_context(request: Request, **extra) -> dict:
     base = settings.base_url.rstrip("/")
     extra.setdefault("canonical_url", base + request.url.path)
+    extra.setdefault("settings", settings)
     return extra
 
 

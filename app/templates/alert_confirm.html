@@ -13,9 +13,6 @@
         <button onclick="sendTestAlert('{{ token }}')" class="inline-block bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg px-6 py-2">
           Send me a test alert
         </button>
-        <button onclick="simulateStockAlert('{{ token }}')" class="inline-block bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg px-6 py-2">
-          Simulate a stock alert
-        </button>
       </div>
       {% endif %}
       <div class="mt-4">
@@ -38,18 +35,6 @@ async function sendTestAlert(token) {
     el.textContent = json.message || json.detail || 'Done.';
   } catch (err) {
     el.textContent = 'Failed to send test alert.';
-  }
-}
-
-async function simulateStockAlert(token) {
-  const el = document.getElementById('test-message');
-  el.textContent = 'Simulating stock alert...';
-  try {
-    const res = await fetch('/api/alerts/simulate/' + token, { method: 'POST' });
-    const json = await res.json();
-    el.textContent = json.message || json.detail || 'Done.';
-  } catch (err) {
-    el.textContent = 'Failed to simulate stock alert.';
   }
 }
 </script>
