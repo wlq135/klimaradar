@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="bg-gradient-to-br from-blue-600 to-blue-800 text-white py-16">
+  <div class="max-w-4xl mx-auto px-4 text-center">
+    <h1 class="text-4xl md:text-5xl font-extrabold mb-4">Simple, transparent pricing</h1>
+    <p class="text-lg md:text-xl text-blue-100">
+      Start free. Pay once only if you need more alerts.
+    </p>
+  </div>
+</section>
+
+<section class="py-12">
+  <div class="max-w-4xl mx-auto px-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <!-- Free tier -->
+      <div class="bg-white rounded-xl shadow p-8 flex flex-col">
+        <h2 class="text-2xl font-bold mb-2">Free</h2>
+        <p class="text-slate-500 mb-6">For occasional shoppers.</p>
+        <div class="text-4xl font-bold text-slate-900 mb-6">€0</div>
+        <ul class="space-y-3 text-slate-700 mb-8 flex-grow">
+          <li class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            1 active alert
+          </li>
+          <li class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            Email notifications
+          </li>
+          <li class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            Germany &amp; France coverage
+          </li>
+        </ul>
+        <a href="/search?country=DE" class="block text-center bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-lg px-6 py-3 transition">
+          Start free
+        </a>
+      </div>
+
+      <!-- Lifetime tier -->
+      <div class="bg-white rounded-xl shadow p-8 flex flex-col border-2 border-blue-600 relative">
+        <div class="absolute top-0 right-0 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">POPULAR</div>
+        <h2 class="text-2xl font-bold mb-2">Lifetime</h2>
+        <p class="text-slate-500 mb-6">For hot summers and deal hunters.</p>
+        <div class="text-4xl font-bold text-slate-900 mb-6">€3</div>
+        <ul class="space-y-3 text-slate-700 mb-8 flex-grow">
+          <li class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            <strong>Unlimited</strong> active alerts
+          </li>
+          <li class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            Email notifications
+          </li>
+          <li class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            Germany &amp; France coverage
+          </li>
+          <li class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            One-time payment, lifetime access
+          </li>
+        </ul>
+
+        <form id="pricing-checkout-form" class="space-y-3">
+          <label class="block text-sm font-medium text-slate-700">Email</label>
+          <input type="email" name="email" required placeholder="you@example.com"
+                 class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none">
+          <button type="submit" id="pricing-checkout-btn"
+                  class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-6 py-3 transition">
+            Upgrade for €3
+          </button>
+        </form>
+        <p id="pricing-message" class="mt-3 text-sm text-slate-600"></p>
+      </div>
+    </div>
+
+    <div class="mt-12 text-center text-sm text-slate-500">
+      <p>Payments are processed securely by Paddle. EU VAT is included.</p>
+      <p class="mt-2">Questions? <a href="/feedback" class="text-blue-600 hover:underline">Contact us</a>.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+document.getElementById('pricing-checkout-form').addEventListener('submit', async function (event) {
+  event.preventDefault();
+  const form = event.target;
+  const btn = document.getElementById('pricing-checkout-btn');
+  const messageEl = document.getElementById('pricing-message');
+  const email = form.email.value.trim();
+
+  btn.disabled = true;
+  btn.textContent = 'Redirecting to checkout...';
+  messageEl.textContent = '';
+
+  try {
+    const res = await fetch('/api/billing/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+
+    let json;
+    try {
+      json = await res.json();
+    } catch (parseErr) {
+      json = { detail: 'Unexpected response. Please try again.' };
+    }
+
+    if (res.ok && json.checkout_url) {
+      window.open(json.checkout_url, '_blank');
+      messageEl.textContent = 'Checkout opened in a new tab. Complete payment there; your account will be activated automatically.';
+    } else {
+      messageEl.textContent = json.detail || json.message || 'Something went wrong.';
+      btn.disabled = false;
+      btn.textContent = 'Upgrade for €3';
+    }
+  } catch (err) {
+    messageEl.textContent = 'Network error. Please check your connection.';
+    btn.disabled = false;
+    btn.textContent = 'Upgrade for €3';
+  }
+});
+</script>
+{% endblock %}

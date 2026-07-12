@@ -69,6 +69,13 @@ class Settings(BaseSettings):
     playwright_proxy_password: str = ""
     playwright_proxy_retailers: str = ""
 
+    # Paddle billing integration.
+    # Paddle handles EU VAT as the merchant of record.
+    paddle_environment: str = "sandbox"  # "sandbox" or "production"
+    paddle_api_key: str = ""
+    paddle_webhook_secret: str = ""
+    paddle_price_id: str = ""  # e.g. pri_...
+
     scraper_interval_minutes: int = 60
     request_timeout_seconds: int = 30
     user_agent: str = (

@@ -16,6 +16,7 @@ from app.models import AlertSubscription
 from app.rate_limit import subscribe_limiter
 from app.schemas import AlertSubscriptionCreate
 from app.services.alerter import get_email_backend
+from app.services.paddle import can_create_alert, create_checkout
 from app.templating import templates
 
 logger = logging.getLogger(__name__)
@@ -95,6 +96,26 @@ async def subscribe(
         return {
             "message": "You already have an active alert for this country."
         }
+
+    # Enforce the free-tier alert limit.
+    access = await can_create_alert(session, payload.email)
+    if not access["allowed"]:
+        try:
+            checkout = await create_checkout(payload.email)
+        except Exception as exc:
+            logger.exception("Failed to create Paddle checkout for upgrade")
+            raise HTTPException(
+                status_code=500,
+                detail="Unable to start checkout. Please try again later.",
+            ) from exc
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "message": "You have used your free alert. Upgrade to unlimited alerts for €3 (lifetime).",
+                "upgrade_url": checkout["checkout_url"],
+                "transaction_id": checkout["transaction_id"],
+            },
+        )
 
     token = _generate_token()
     sub = AlertSubscription(

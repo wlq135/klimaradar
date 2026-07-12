@@ -51,3 +51,6 @@ admin_scrape_limiter = RateLimiter(max_requests=10, window_seconds=60)
 
 # 3 feedback submissions per minute per IP.
 feedback_limiter = RateLimiter(max_requests=3, window_seconds=60)
+
+# 10 checkout attempts per minute per IP.
+billing_limiter = RateLimiter(max_requests=10, window_seconds=60)

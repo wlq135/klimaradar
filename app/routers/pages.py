@@ -134,6 +134,19 @@ async def index(request: Request, session: AsyncSession = Depends(get_db)):
     )
 
 
+@router.api_route("/pricing", methods=["GET", "HEAD"], response_class=HTMLResponse)
+async def pricing(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "pricing.html",
+        _template_context(
+            request,
+            title="Pricing — KlimaRadar",
+            description="Get unlimited AC stock alerts for a one-time €3 payment. Free tier includes 1 alert.",
+        ),
+    )
+
+
 @router.api_route("/robots.txt", methods=["GET", "HEAD"], response_class=PlainTextResponse)
 async def robots_txt():
     base = settings.base_url.rstrip("/")
@@ -152,6 +165,7 @@ async def sitemap_xml():
         (f"{base}/", "1.0"),
         (f"{base}/search?country=DE", "0.8"),
         (f"{base}/search?country=FR", "0.8"),
+        (f"{base}/pricing", "0.8"),
         (f"{base}/privacy", "0.5"),
         (f"{base}/about", "0.5"),
     ]

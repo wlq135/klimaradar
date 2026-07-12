@@ -223,6 +223,68 @@ class ClickEvent(Base):
     ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
+class PaidCustomer(Base):
+    """Tracks whether an email address has paid for unlimited alerts."""
+
+    __tablename__ = "paid_customers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    is_paid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class PaddleCustomer(Base):
+    """Maps an email address to a Paddle customer ID."""
+
+    __tablename__ = "paddle_customers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    paddle_customer_id: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class PaddlePayment(Base):
+    """Audit log of Paddle transactions and refunds."""
+
+    __tablename__ = "paddle_payments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    paddle_transaction_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    paddle_customer_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    amount: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    event_id: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False)
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    refunded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 class Feedback(Base):
     """User-submitted feedback about the site."""
 

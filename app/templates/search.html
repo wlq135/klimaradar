@@ -182,8 +182,24 @@ async function submitAlert(event) {
     } catch (parseErr) {
       json = { detail: 'Unexpected server response. Please try again.' };
     }
-    messageEl.textContent = json.detail || json.message || 'Something went wrong.';
-    if (res.ok) form.reset();
+    messageEl.textContent = '';
+    if (res.status === 402) {
+      const detail = json.detail || {};
+      form.style.display = 'none';
+      messageEl.innerHTML = `
+        <p class="mb-3">${detail.message || 'You have used your free alert.'}</p>
+        <a href="${detail.upgrade_url || '/pricing'}" target="_blank"
+           class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-4 py-2">
+          Upgrade for €3
+        </a>
+        <p class="mt-3 text-xs text-slate-500">
+          <a href="#" onclick="location.reload(); return false;" class="underline">Already paid? Refresh this page.</a>
+        </p>
+      `;
+    } else {
+      messageEl.textContent = json.detail || json.message || 'Something went wrong.';
+      if (res.ok) form.reset();
+    }
   } catch (err) {
     messageEl.textContent = 'Network error. Please check your connection and try again.';
   }

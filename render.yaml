@@ -53,6 +53,14 @@ services:
         sync: false
       - key: PLAYWRIGHT_PROXY_RETAILERS
         sync: false
+      - key: PADDLE_ENVIRONMENT
+        value: production
+      - key: PADDLE_API_KEY
+        sync: false
+      - key: PADDLE_WEBHOOK_SECRET
+        sync: false
+      - key: PADDLE_PRICE_ID
+        sync: false
     healthCheckPath: /api/health
     disk:
       name: klimaradar-data
