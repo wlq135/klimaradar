@@ -1,8 +1,9 @@
 """Public HTML pages and affiliate redirect."""
 
-from datetime import datetime, timezone
 import hashlib
+import json
 import logging
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
@@ -18,6 +19,16 @@ from app.database import get_db
 from app.models import ClickEvent, Listing, Product, Retailer
 from app.rate_limit import admin_scrape_limiter
 from app.schemas import SearchFilters, StatsOut
+from app.seo import (
+    COUNTRY_LANGUAGES,
+    build_breadcrumb_jsonld,
+    build_hreflang_alternates,
+    build_website_organization_jsonld,
+    get_city_info,
+    get_seo_copy,
+    get_sitemap_cities,
+    list_cities_for_country,
+)
 from app.services.affiliate import tag_url
 from app.services.scraper import run_scrape
 from app.templating import templates
@@ -26,18 +37,6 @@ from app.templating import templates
 def _client_ip(request: Request) -> str:
     return get_client_ip(request)
 
-
-_SITEMAP_CITIES = [
-    ("de", "berlin"),
-    ("de", "hamburg"),
-    ("de", "munich"),
-    ("de", "cologne"),
-    ("de", "frankfurt"),
-    ("de", "stuttgart"),
-    ("fr", "paris"),
-    ("fr", "lyon"),
-    ("fr", "marseille"),
-]
 
 _DEFAULT_DESCRIPTION = (
     "Find portable air conditioners in stock across Europe. "
@@ -114,6 +113,11 @@ def _bool_from_param(value: str | None) -> bool:
 @router.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def index(request: Request, session: AsyncSession = Depends(get_db)):
     stats = await _get_stats(session)
+    base = settings.base_url.rstrip("/")
+    canonical_url = f"{base}/"
+    html_lang = "en"
+    hreflang_alternates = build_hreflang_alternates(html_lang, canonical_url, base)
+    structured_data = build_website_organization_jsonld(base)
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -121,7 +125,11 @@ async def index(request: Request, session: AsyncSession = Depends(get_db)):
             request,
             title="KlimaRadar — Find portable ACs in stock across Europe",
             description=_DEFAULT_DESCRIPTION,
+            html_lang=html_lang,
+            hreflang_alternates=hreflang_alternates,
+            structured_data=json.dumps(structured_data, ensure_ascii=False),
             stats=stats,
+            canonical_url=canonical_url,
         ),
     )
 
@@ -147,7 +155,7 @@ async def sitemap_xml():
         (f"{base}/privacy", "0.5"),
         (f"{base}/about", "0.5"),
     ]
-    for country, city in _SITEMAP_CITIES:
+    for country, city in get_sitemap_cities():
         urls.append((f"{base}/{country}/{city}/portable-ac-in-stock", "0.7"))
 
     lines = ['<?xml version="1.0" encoding="UTF-8"?>']
@@ -227,11 +235,33 @@ async def search(
         q=q,
     )
     listings = await _fetch_filtered_listings(session, filters)
-    title = f"Portable AC in stock{f' in {city}' if city else ''}, {country}"
-    description = (
-        f"Browse portable air conditioners in stock{f' in {city}' if city else ''} in {country}. "
-        "Compare prices, stock status and delivery times on KlimaRadar."
-    )
+
+    country_upper = country.upper()
+    base = settings.base_url.rstrip("/")
+    query_suffix = f"?{request.url.query}" if request.url.query else ""
+    canonical_url = f"{base}{request.url.path}{query_suffix}"
+    html_lang = COUNTRY_LANGUAGES.get(country_upper, "en")
+    hreflang_alternates = build_hreflang_alternates(html_lang, canonical_url, base)
+
+    if country_upper == "DE":
+        title = f"Mobile Klimaanlage auf Lager{f' in {city}' if city else ''} — {country_upper}"
+        description = (
+            f"Finde mobile Klimaanlagen auf Lager{f' in {city}' if city else ''} in Deutschland. "
+            "Vergleiche Preise, Verfügbarkeit und Lieferzeiten auf KlimaRadar."
+        )
+    elif country_upper == "FR":
+        title = f"Climatiseur mobile en stock{f' à {city}' if city else ''} — {country_upper}"
+        description = (
+            f"Trouvez des climatiseurs mobiles en stock{f' à {city}' if city else ''} en France. "
+            "Comparez les prix, la disponibilité et les délais de livraison sur KlimaRadar."
+        )
+    else:
+        title = f"Portable AC in stock{f' in {city}' if city else ''}, {country_upper}"
+        description = (
+            f"Browse portable air conditioners in stock{f' in {city}' if city else ''} in {country_upper}. "
+            "Compare prices, stock status and delivery times on KlimaRadar."
+        )
+
     return templates.TemplateResponse(
         request,
         "search.html",
@@ -239,6 +269,9 @@ async def search(
             request,
             title=title,
             description=description,
+            html_lang=html_lang,
+            hreflang_alternates=hreflang_alternates,
+            canonical_url=canonical_url,
             listings=listings,
             filters=filters.model_dump(),
             total=len(listings),
@@ -257,20 +290,41 @@ async def city_seo_page(
     city: str,
     session: AsyncSession = Depends(get_db),
 ):
-    filters = SearchFilters(country=country.upper(), city=city.title())
-    listings = await _fetch_filtered_listings(session, filters)
-    title = f"Portable AC in stock in {city.title()}, {country.upper()} — KlimaRadar"
-    description = (
-        f"Find portable air conditioners in stock in {city.title()}, {country.upper()}. "
-        "Compare live availability, prices and delivery options on KlimaRadar."
+    country_code = country.upper()
+    city_info = get_city_info(country_code, city)
+    if city_info is None:
+        raise HTTPException(status_code=404, detail="City not found")
+
+    filters = SearchFilters(
+        country=country_code,
+        city=city_info["display_name"],
+        product_type="portable",
     )
+    listings = await _fetch_filtered_listings(session, filters)
+    seo_copy = get_seo_copy(country_code, city_info)
+
+    base = settings.base_url.rstrip("/")
+    canonical_url = f"{base}/{country_code.lower()}/{city_info['slug']}/portable-ac-in-stock"
+    html_lang = COUNTRY_LANGUAGES.get(country_code, "en")
+    hreflang_alternates = build_hreflang_alternates(html_lang, canonical_url, base)
+    breadcrumb_jsonld = build_breadcrumb_jsonld(base, country_code, city_info, seo_copy)
+    other_cities = list_cities_for_country(country_code, limit=10, exclude_slug=city_info["slug"])
+
     return templates.TemplateResponse(
         request,
         "search.html",
         _template_context(
             request,
-            title=title,
-            description=description,
+            title=seo_copy["title"],
+            description=seo_copy["description"],
+            html_lang=html_lang,
+            hreflang_alternates=hreflang_alternates,
+            canonical_url=canonical_url,
+            h1=seo_copy["h1"],
+            page_intro=seo_copy["intro"],
+            popular_cities_title=seo_copy["popular_cities"],
+            other_cities=other_cities,
+            breadcrumb_jsonld=json.dumps(breadcrumb_jsonld, ensure_ascii=False),
             listings=listings,
             filters=filters.model_dump(),
             total=len(listings),

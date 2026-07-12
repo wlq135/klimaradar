@@ -3,8 +3,12 @@
 {% block content %}
 <section class="bg-white border-b border-slate-200 py-8">
   <div class="max-w-6xl mx-auto px-4">
-    <h1 class="text-2xl md:text-3xl font-bold mb-2">{{ title }}</h1>
+    <h1 class="text-2xl md:text-3xl font-bold mb-2">{{ h1|default(title) }}</h1>
+    {% if page_intro %}
+    <p class="text-slate-600 max-w-3xl">{{ page_intro }}</p>
+    {% else %}
     <p class="text-slate-500">Real-time stock and price tracking for portable air conditioners.</p>
+    {% endif %}
   </div>
 </section>
 
@@ -71,6 +75,28 @@
     {% endif %}
   </div>
 </section>
+
+{% if seo_mode and other_cities %}
+<section class="bg-slate-50 border-t border-slate-200 py-8">
+  <div class="max-w-6xl mx-auto px-4">
+    <h2 class="text-lg font-semibold mb-4">{{ popular_cities_title }}</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      {% for other in other_cities %}
+      <a href="/{{ other.country.lower() }}/{{ other.slug }}/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+        <h3 class="font-semibold text-blue-600">{{ other.display_name }}</h3>
+        <p class="text-sm text-slate-500">{{ other.region }}</p>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% if breadcrumb_jsonld %}
+<script type="application/ld+json">
+{{ breadcrumb_jsonld|safe }}
+</script>
+{% endif %}
 
     {% if listings %}
     <script type="application/ld+json">
