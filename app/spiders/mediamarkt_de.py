@@ -28,6 +28,11 @@ class MediaMarktDeSpider(PlaywrightSpider):
 
     default_query: str = "mobiles klimagerät"
 
+    async def _block_unnecessary_resources(self, page: Page) -> None:
+        # MediaMarkt returns a lightweight challenge page when any request is
+        # intercepted via page.route(), so we must skip resource blocking here.
+        return
+
     async def _extract_listings(
         self, page: Page, product_type: str | None = None
     ) -> list[ListingSnapshot]:
@@ -40,7 +45,7 @@ class MediaMarktDeSpider(PlaywrightSpider):
         for key in product_keys:
             product = state[key]
             pid = product["id"]
-            price_feature = state.get(f"CofrPriceFeature:Media:de:{pid}")
+            price_feature = self._find_price_feature(state, pid)
             status_feature = state.get(f"CofrOnlineStatusFeature:Media:de:{pid}")
             media_feature = state.get(f"CofrMediaAssetsFeature:Media:de:{pid}")
             delivery_feature = state.get(f"CofrDeliveryFeature:Media:de:{pid}")
@@ -87,6 +92,20 @@ class MediaMarktDeSpider(PlaywrightSpider):
                 )
             )
         return snapshots
+
+    @staticmethod
+    def _find_price_feature(state: dict, pid: str) -> dict | None:
+        """Find the Apollo price entity for a product id.
+
+        MediaMarkt switched from a plain ``CofrPriceFeature:Media:de:{pid}`` key
+        to a JSON-encoded key that also contains a price stub. We match by the
+        ``id`` field inside the entity instead of the cache key.
+        """
+        target_id = f"Media:de:{pid}"
+        for key, value in state.items():
+            if key.startswith("CofrPriceFeature:") and value.get("id") == target_id:
+                return value
+        return None
 
     @staticmethod
     def _extract_preloaded_state(html: str) -> dict:
