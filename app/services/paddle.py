@@ -48,7 +48,7 @@ async def create_checkout(email: str) -> dict[str, str]:
     payload = {
         "items": [
             {
-                "price": {"id": settings.paddle_price_id},
+                "price_id": settings.paddle_price_id,
                 "quantity": 1,
             }
         ],
