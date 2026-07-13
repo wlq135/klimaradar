@@ -63,7 +63,15 @@ async def create_checkout(email: str) -> dict[str, str]:
             json=payload,
             timeout=30.0,
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError:
+            logger.error(
+                "Paddle /transactions failed: status=%s body=%s",
+                response.status_code,
+                response.text,
+            )
+            raise
         data = response.json()["data"]
 
     return {
