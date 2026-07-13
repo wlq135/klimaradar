@@ -167,6 +167,8 @@ async def sitemap_xml():
         (f"{base}/search?country=FR", "0.8"),
         (f"{base}/pricing", "0.8"),
         (f"{base}/privacy", "0.5"),
+        (f"{base}/terms", "0.5"),
+        (f"{base}/refunds", "0.5"),
         (f"{base}/about", "0.5"),
     ]
     for country, city in get_sitemap_cities():
@@ -220,6 +222,19 @@ async def terms(request: Request):
             request,
             title="Terms of Service — KlimaRadar",
             description="Read KlimaRadar's terms of service and affiliate disclosure.",
+        ),
+    )
+
+
+@router.api_route("/refunds", methods=["GET", "HEAD"], response_class=HTMLResponse)
+async def refunds(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "refunds.html",
+        _template_context(
+            request,
+            title="Refund Policy — KlimaRadar",
+            description="Read KlimaRadar's refund policy for the lifetime upgrade.",
         ),
     )
 
