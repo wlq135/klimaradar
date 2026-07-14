@@ -20,6 +20,8 @@ from app.models import ClickEvent, Listing, Product, Retailer
 from app.rate_limit import admin_scrape_limiter
 from app.schemas import SearchFilters, StatsOut
 from app.seo import (
+    CITY_METADATA,
+    COUNTRY_NAMES,
     COUNTRY_LANGUAGES,
     build_breadcrumb_jsonld,
     build_hreflang_alternates,
@@ -118,6 +120,21 @@ async def index(request: Request, session: AsyncSession = Depends(get_db)):
     html_lang = "en"
     hreflang_alternates = build_hreflang_alternates(html_lang, canonical_url, base)
     structured_data = build_website_organization_jsonld(base)
+
+    country_order = ["DE", "FR", "IT", "ES", "NL", "BE"]
+    popular_searches = []
+    for code in country_order:
+        cities = [c for c in CITY_METADATA if c["country"] == code][:6]
+        if not cities:
+            continue
+        popular_searches.append(
+            {
+                "code": code,
+                "name": COUNTRY_NAMES.get(code, {}).get("en", code),
+                "cities": cities,
+            }
+        )
+
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -129,6 +146,7 @@ async def index(request: Request, session: AsyncSession = Depends(get_db)):
             hreflang_alternates=hreflang_alternates,
             structured_data=json.dumps(structured_data, ensure_ascii=False),
             stats=stats,
+            popular_searches=popular_searches,
             canonical_url=canonical_url,
         ),
     )
@@ -285,9 +303,12 @@ async def search(
             "Comparez les prix, la disponibilité et les délais de livraison sur KlimaRadar."
         )
     else:
-        title = f"Portable AC in stock{f' in {city}' if city else ''}, {country_upper}"
+        from app.seo.cities import COUNTRY_NAMES
+
+        country_name = COUNTRY_NAMES.get(country_upper, {}).get("en", country_upper)
+        title = f"Portable AC in stock{f' in {city}' if city else ''}, {country_name} — KlimaRadar"
         description = (
-            f"Browse portable air conditioners in stock{f' in {city}' if city else ''} in {country_upper}. "
+            f"Browse portable air conditioners in stock{f' in {city}' if city else ''} in {country_name}. "
             "Compare prices, stock status and delivery times on KlimaRadar."
         )
 

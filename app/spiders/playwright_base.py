@@ -115,10 +115,11 @@ class PlaywrightSpider(Spider):
 
     async def _prepare_context(self, browser) -> BrowserContext:
         """Create a browser context with anti-detection and optional proxy."""
+        locale = getattr(self, "_LOCALE", "en-US")
         context_kwargs: dict = {
             "user_agent": settings.user_agent,
             "viewport": {"width": 1280, "height": 800},
-            "locale": "de-DE" if self.country == "DE" else "fr-FR",
+            "locale": locale,
         }
         proxy = self._proxy_config()
         if proxy:

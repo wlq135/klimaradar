@@ -10,11 +10,27 @@ from app.config import settings
 _AFFILIATE_PARAMS = {
     "amazon.de": "tag",
     "amazon.com": "tag",
+    "amazon.fr": "tag",
+    "amazon.it": "tag",
+    "amazon.es": "tag",
+    "amazon.nl": "tag",
+    "amazon.be": "tag",
     "mediamarkt.de": "ref",
     "boulanger.com": "ref",
     "boulanger.fr": "ref",
     "darty.com": "ref",
     "darty.fr": "ref",
+}
+
+
+_AMAZON_DOMAINS = {
+    "amazon.de",
+    "amazon.com",
+    "amazon.fr",
+    "amazon.it",
+    "amazon.es",
+    "amazon.nl",
+    "amazon.be",
 }
 
 
@@ -30,8 +46,18 @@ def _normalize_domain(domain: str | None) -> str:
 
 def _affiliate_tag_for(domain: str) -> str | None:
     """Return the configured affiliate tag for a normalized retailer domain."""
-    if domain in ("amazon.de", "amazon.com"):
-        return settings.amazon_de_affiliate_tag or None
+    if domain in _AMAZON_DOMAINS:
+        # Map each Amazon TLD to its country-specific tag setting.
+        mapping = {
+            "amazon.de": settings.amazon_de_affiliate_tag,
+            "amazon.com": settings.amazon_de_affiliate_tag,
+            "amazon.fr": settings.amazon_fr_affiliate_tag,
+            "amazon.it": settings.amazon_it_affiliate_tag,
+            "amazon.es": settings.amazon_es_affiliate_tag,
+            "amazon.nl": settings.amazon_nl_affiliate_tag,
+            "amazon.be": settings.amazon_be_affiliate_tag,
+        }
+        return mapping.get(domain) or None
     if domain == "mediamarkt.de":
         return settings.mediamarkt_de_affiliate_tag or None
     if domain in ("boulanger.com", "boulanger.fr"):

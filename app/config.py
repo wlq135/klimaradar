@@ -41,6 +41,10 @@ class Settings(BaseSettings):
 
     amazon_de_affiliate_tag: str = ""
     amazon_fr_affiliate_tag: str = ""
+    amazon_it_affiliate_tag: str = ""
+    amazon_es_affiliate_tag: str = ""
+    amazon_nl_affiliate_tag: str = ""
+    amazon_be_affiliate_tag: str = ""
     mediamarkt_de_affiliate_tag: str = ""
     boulanger_fr_affiliate_tag: str = ""
     darty_fr_affiliate_tag: str = ""

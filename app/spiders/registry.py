@@ -4,10 +4,14 @@ Each entry maps a retailer name/country to a concrete spider implementation.
 """
 
 from app.config import settings
+from app.spiders.amazon_be import AmazonBeSpider
 from app.spiders.amazon_de import AmazonDeSpider
+from app.spiders.amazon_es import AmazonEsSpider
 from app.spiders.amazon_fr import AmazonFrSpider
-from app.spiders.boulanger_fr import BoulangerFrSpider
+from app.spiders.amazon_it import AmazonItSpider
+from app.spiders.amazon_nl import AmazonNlSpider
 from app.spiders.base import Spider
+from app.spiders.boulanger_fr import BoulangerFrSpider
 from app.spiders.darty_fr import DartyFrSpider
 from app.spiders.demo import DemoSpider
 from app.spiders.generic import GenericHtmlSpider
@@ -42,6 +46,14 @@ def _affiliate_tag_for(country: str, retailer_name: str) -> str | None:
         return settings.amazon_de_affiliate_tag
     if retailer_name == "Amazon France":
         return settings.amazon_fr_affiliate_tag
+    if retailer_name == "Amazon Italy":
+        return settings.amazon_it_affiliate_tag
+    if retailer_name == "Amazon Spain":
+        return settings.amazon_es_affiliate_tag
+    if retailer_name == "Amazon Netherlands":
+        return settings.amazon_nl_affiliate_tag
+    if retailer_name == "Amazon Belgium":
+        return settings.amazon_be_affiliate_tag
     if retailer_name == "MediaMarkt Germany":
         return settings.mediamarkt_de_affiliate_tag
     if retailer_name == "Boulanger France":
@@ -76,6 +88,10 @@ def get_spiders_for_country(
         ("DE", "Amazon Germany", AmazonDeSpider),
         ("DE", "MediaMarkt Germany", MediaMarktDeSpider),
         ("FR", "Amazon France", AmazonFrSpider),
+        ("IT", "Amazon Italy", AmazonItSpider),
+        ("ES", "Amazon Spain", AmazonEsSpider),
+        ("NL", "Amazon Netherlands", AmazonNlSpider),
+        ("BE", "Amazon Belgium", AmazonBeSpider),
     ]
     if settings.playwright_proxy_server:
         playwright_spiders.extend([

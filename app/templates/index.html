@@ -13,7 +13,7 @@
   <div class="max-w-4xl mx-auto px-4 text-center">
     <h1 class="text-4xl md:text-5xl font-extrabold mb-4">Stop refreshing retailer sites.</h1>
     <p class="text-lg md:text-xl text-blue-100 mb-8">
-      KlimaRadar tracks portable AC stock and prices across Germany, France and beyond.
+      KlimaRadar tracks portable AC stock and prices across Germany, France, Italy, Spain, the Netherlands and Belgium.
       Get an email the moment a unit is available.
     </p>
     <form action="/search" method="get" class="bg-white rounded-xl p-4 shadow-lg max-w-2xl mx-auto flex flex-col md:flex-row gap-3">
@@ -22,6 +22,8 @@
         <option value="FR">France</option>
         <option value="IT">Italy</option>
         <option value="ES">Spain</option>
+        <option value="NL">Netherlands</option>
+        <option value="BE">Belgium</option>
       </select>
       <input type="text" name="city" placeholder="City (e.g. Berlin)" class="md:w-1/3 rounded-lg border-slate-300 px-4 py-3 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none">
       <button type="submit" class="md:w-1/3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-6 py-3 transition">
@@ -54,61 +56,17 @@
 
     <h2 class="text-2xl font-bold mb-6">Popular searches</h2>
 
-    <h3 class="text-lg font-semibold mb-3">Germany</h3>
+    {% for country in popular_searches %}
+    <h3 class="text-lg font-semibold mb-3">{{ country.name }}</h3>
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-      <a href="/de/berlin/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
-        <h3 class="font-semibold text-blue-600">Portable AC in Berlin</h3>
-        <p class="text-sm text-slate-500">See in-stock units in Germany's capital.</p>
+      {% for city in country.cities %}
+      <a href="/{{ country.code|lower }}/{{ city.slug }}/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+        <h3 class="font-semibold text-blue-600">Portable AC in {{ city.display_name }}</h3>
+        <p class="text-sm text-slate-500">See in-stock units in {{ city.region }}.</p>
       </a>
-      <a href="/de/muenchen/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
-        <h3 class="font-semibold text-blue-600">Portable AC in Munich</h3>
-        <p class="text-sm text-slate-500">Track availability in Bavaria.</p>
-      </a>
-      <a href="/de/hamburg/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
-        <h3 class="font-semibold text-blue-600">Portable AC in Hamburg</h3>
-        <p class="text-sm text-slate-500">Find units in northern Germany.</p>
-      </a>
-      <a href="/de/koeln/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
-        <h3 class="font-semibold text-blue-600">Portable AC in Cologne</h3>
-        <p class="text-sm text-slate-500">Compare options in the Rhine-Ruhr area.</p>
-      </a>
-      <a href="/de/frankfurt/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
-        <h3 class="font-semibold text-blue-600">Portable AC in Frankfurt</h3>
-        <p class="text-sm text-slate-500">Check stock in Hesse.</p>
-      </a>
-      <a href="/de/stuttgart/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
-        <h3 class="font-semibold text-blue-600">Portable AC in Stuttgart</h3>
-        <p class="text-sm text-slate-500">Discover units in Baden-Württemberg.</p>
-      </a>
+      {% endfor %}
     </div>
-
-    <h3 class="text-lg font-semibold mb-3">France</h3>
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-      <a href="/fr/paris/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
-        <h3 class="font-semibold text-blue-600">Portable AC in Paris</h3>
-        <p class="text-sm text-slate-500">Find units around Île-de-France.</p>
-      </a>
-      <a href="/fr/lyon/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
-        <h3 class="font-semibold text-blue-600">Portable AC in Lyon</h3>
-        <p class="text-sm text-slate-500">Check availability in Auvergne-Rhône-Alpes.</p>
-      </a>
-      <a href="/fr/marseille/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
-        <h3 class="font-semibold text-blue-600">Portable AC in Marseille</h3>
-        <p class="text-sm text-slate-500">See options in Provence-Alpes-Côte d'Azur.</p>
-      </a>
-      <a href="/fr/toulouse/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
-        <h3 class="font-semibold text-blue-600">Portable AC in Toulouse</h3>
-        <p class="text-sm text-slate-500">Track stock in Occitanie.</p>
-      </a>
-      <a href="/fr/nantes/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
-        <h3 class="font-semibold text-blue-600">Portable AC in Nantes</h3>
-        <p class="text-sm text-slate-500">Find units in Pays de la Loire.</p>
-      </a>
-      <a href="/fr/strasbourg/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
-        <h3 class="font-semibold text-blue-600">Portable AC in Strasbourg</h3>
-        <p class="text-sm text-slate-500">Compare options in Grand Est.</p>
-      </a>
-    </div>
+    {% endfor %}
   </div>
 </section>
 {% endblock %}
