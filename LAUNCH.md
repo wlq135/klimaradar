@@ -10,6 +10,7 @@ Reference files:
 - `d:\py_practice\bywork\EU_AC\launch_content\reddit_de.md`
 - `d:\py_practice\bywork\EU_AC\launch_content\reddit_fr.md`
 - `d:\py_practice\bywork\EU_AC\launch_content\twitter_x.md`
+- `d:\py_practice\bywork\EU_AC\launch_content\product_hunt.md`
 - `d:\py_practice\bywork\EU_AC\launch_content\deal_forums.md`
 
 ---
@@ -227,7 +228,10 @@ Post in this order, spaced 20–60 minutes apart. Choose the country that matche
    - Post the English thread first.
    - Quote-tweet with German and French variants if you have followers in those markets.
    - Pin the launch tweet to your profile.
-5. **Email press pitch** — send `d:\py_practice\bywork\EU_AC\launch_content\press_pitch.md` to local journalists covering consumer tech, climate, or heat waves.
+5. **Product Hunt** — use `d:\py_practice\bywork\EU_AC\launch_content\product_hunt.md`
+   - Launch in the morning (US West Coast time works best).
+   - Share the PH link back to Twitter/X and Reddit threads for upvotes.
+6. **Email press pitch** — send `d:\py_practice\bywork\EU_AC\launch_content\press_pitch.md` to local journalists covering consumer tech, climate, or heat waves.
 
 ### Phase C — Engagement (T+4 to T+24 hours)
 6. Reply to all comments and DMs.

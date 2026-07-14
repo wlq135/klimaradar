@@ -1,26 +1,44 @@
 # Variant 1 — English
 
-Tired of refreshing retailer pages for a portable AC? I built a free stock alert for Germany & France. No account. Just an email. Get notified when portable ACs are back in stock.
+Tired of refreshing retailer pages for a portable AC? I built KlimaRadar, a stock alert for Germany & France.
+
+- 1 free alert per email
+- €3 one-time = unlimited alerts forever
+- Instant or daily digest
+
+No account. Just an email.
 
 https://klima-radar.com
 
-#ClimateTech #HeatWave #Klimaradar #FreeTool
+#ClimateTech #HeatWave #Klimaradar #SideProject
 
 ---
 
 # Variant 2 — German
 
-Immer wieder "nicht verfügbar" bei mobilen Klimageräten? Ich habe einen kostenlosen Verfügbarkeits-Alarm für Deutschland & Frankreich gebaut. Kein Account, nur E-Mail. Ihr bekommt eine Mail bei Restocks.
+Immer wieder "nicht verfügbar" bei mobilen Klimageräten? Ich habe KlimaRadar gebaut — Verfügbarkeits-Alarm für DE & FR.
+
+- 1 kostenloser Alarm pro E-Mail
+- 3 € einmalig = unbegrenzt für immer
+- Sofort oder tägliche Zusammenfassung
+
+Kein Account, nur E-Mail.
 
 https://klima-radar.com
 
-#Klimagerät #Hitzewelle #Kostenlos #Klimaradar
+#Klimagerät #Hitzewelle #Klimaradar #SideProject
 
 ---
 
 # Variant 3 — French
 
-Marre des climatiseurs mobiles en rupture partout ? J'ai créé une alerte gratuite par e-mail pour la France et l'Allemagne. Pas de compte, juste une adresse mail.
+Marre des climatiseurs mobiles en rupture partout ? J'ai créé KlimaRadar pour la France et l'Allemagne.
+
+- 1 alerte gratuite par e-mail
+- 3 € une fois = illimité à vie
+- Instantané ou récap quotidien
+
+Pas de compte, juste une adresse mail.
 
 https://klima-radar.com
 
@@ -36,7 +54,7 @@ Free tool drop: KlimaRadar
 2. Pick Germany or France
 3. Get alerted when portable ACs restock
 
-No account, no app, no spam. Built it because summer heat is only getting worse.
+1 free alert. €3 one-time unlocks unlimited. Instant or daily digest.
 
 https://klima-radar.com
 
@@ -46,11 +64,11 @@ https://klima-radar.com
 
 # Variant 5 — Mixed DE/FR/EN
 
-🇩🇪 Kostenloser Klimagerät-Restock-Alarm
-🇫🇷 Alerte gratuite pour climatiseurs mobiles
+🇩🇪 Klimagerät-Restock-Alarm
+🇫🇷 Alerte pour climatiseurs mobiles
 🇬🇧 Free portable AC stock alerts
 
-No account needed. Just email. Germany & France.
+1 free alert. €3 lifetime unlimited. Germany & France.
 
 https://klima-radar.com
 
