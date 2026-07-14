@@ -2,15 +2,54 @@
 
 import asyncio
 import logging
+from collections import defaultdict
 from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.config import settings
-from app.models import AlertLog, AlertSubscription, Listing
+from app.models import AlertDigest, AlertLog, AlertSubscription, Listing
 
 logger = logging.getLogger(__name__)
+
+
+def _start_of_day(dt: datetime | None = None) -> datetime:
+    dt = dt or datetime.now(timezone.utc)
+    return dt.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+async def _digest_already_queued_today(
+    session: AsyncSession, subscription_id: int, listing_id: int
+) -> bool:
+    """Return True if a digest entry already exists for this sub/listing today."""
+    existing = await session.scalar(
+        select(AlertDigest).where(
+            AlertDigest.subscription_id == subscription_id,
+            AlertDigest.listing_id == listing_id,
+            AlertDigest.created_at >= _start_of_day(),
+        )
+    )
+    return existing is not None
+
+
+async def _queue_digest_alert(
+    session: AsyncSession,
+    subscription: AlertSubscription,
+    listing: Listing,
+    event_type: str,
+) -> None:
+    """Add a matching listing to the subscriber's daily digest queue."""
+    if await _digest_already_queued_today(session, subscription.id, listing.id):
+        return
+    session.add(
+        AlertDigest(
+            subscription_id=subscription.id,
+            listing_id=listing.id,
+            event_type=event_type,
+        )
+    )
 
 
 class EmailBackend:
@@ -180,7 +219,7 @@ async def notify_subscribers_for_listing(
     listing: Listing,
     event_type: str,
 ) -> int:
-    """Find matching active subscriptions and send them an alert.
+    """Find matching active subscriptions and send or queue an alert.
 
     Args:
         session: database session.
@@ -188,7 +227,7 @@ async def notify_subscribers_for_listing(
         event_type: human-readable event like "back in stock" or "price drop".
 
     Returns:
-        Number of alerts sent.
+        Number of alerts sent or queued.
     """
     # Match by country, city (optional), product type, BTU, price.
     stmt = select(AlertSubscription).where(
@@ -214,14 +253,17 @@ async def notify_subscribers_for_listing(
         if sub.in_stock_only and listing.stock_status != "in_stock":
             continue
 
+        if sub.frequency == "daily":
+            await _queue_digest_alert(session, sub, listing, event_type)
+            sent += 1
+            continue
+
         # Avoid duplicate alerts for the same listing within 24 hours.
         recent = await session.scalar(
             select(AlertLog).where(
                 AlertLog.subscription_id == sub.id,
                 AlertLog.listing_id == listing.id,
-                AlertLog.sent_at >= datetime.now(timezone.utc).replace(
-                    hour=0, minute=0, second=0, microsecond=0
-                ),
+                AlertLog.sent_at >= _start_of_day(),
             )
         )
         if recent:
@@ -267,6 +309,87 @@ def _render_alert_body(
         </p>
         <p style="font-size:12px;color:#666;">
           You received this because you subscribed to KlimaRadar alerts for {subscription.country}.
+          <br>
+          <a href="{settings.base_url}/api/alerts/unsubscribe?token={subscription.verification_token}">Unsubscribe</a>
+        </p>
+      </body>
+    </html>
+    """.strip()
+
+
+async def send_daily_digests(session: AsyncSession) -> int:
+    """Send one grouped email per daily subscriber for queued matches.
+
+    Returns:
+        Number of digest emails successfully sent.
+    """
+    stmt = (
+        select(AlertDigest)
+        .where(AlertDigest.sent_at.is_(None))
+        .options(
+            selectinload(AlertDigest.subscription),
+            selectinload(AlertDigest.listing).selectinload(Listing.product),
+            selectinload(AlertDigest.listing).selectinload(Listing.retailer),
+        )
+        .order_by(AlertDigest.created_at)
+    )
+    rows = (await session.scalars(stmt)).all()
+
+    by_subscription: dict[int, list[AlertDigest]] = defaultdict(list)
+    for row in rows:
+        by_subscription[row.subscription_id].append(row)
+
+    backend = get_email_backend()
+    sent_count = 0
+    now = datetime.now(timezone.utc)
+    for entries in by_subscription.values():
+        subscription = entries[0].subscription
+        if not subscription.active or not subscription.verified:
+            continue
+        if subscription.frequency != "daily":
+            continue
+
+        subject = f"🌡️ KlimaRadar daily digest — {len(entries)} new match(es)"
+        body = _render_digest_body(subscription, entries)
+        success = await backend.send(subscription.email, subject, body)
+        if success:
+            for entry in entries:
+                entry.sent_at = now
+            subscription.digest_last_sent_at = now
+            sent_count += 1
+
+    await session.commit()
+    return sent_count
+
+
+def _render_digest_body(
+    subscription: AlertSubscription, entries: list[AlertDigest]
+) -> str:
+    """Build an HTML digest from queued alert entries."""
+    items_html = ""
+    for entry in entries:
+        listing = entry.listing
+        price_str = f"€{listing.price:.2f}" if listing.price else "Price unavailable"
+        product_url = listing.affiliate_url or listing.url
+        items_html += f"""
+        <li style="margin-bottom:12px;">
+          <strong>{listing.product.name}</strong> — {entry.event_type}<br>
+          Price: {price_str} · Status: {listing.stock_status.replace('_', ' ').title()} · Retailer: {listing.retailer.name}<br>
+          <a href="{product_url}">View / Buy Now</a>
+        </li>
+        """
+
+    return f"""
+    <html>
+      <body>
+        <h2>KlimaRadar Daily Digest</h2>
+        <p>Hi,</p>
+        <p>Here are the AC matches we found for your alert in {subscription.country}:</p>
+        <ul>
+          {items_html}
+        </ul>
+        <p style="font-size:12px;color:#666;">
+          You received this because you subscribed to daily KlimaRadar alerts for {subscription.country}.
           <br>
           <a href="{settings.base_url}/api/alerts/unsubscribe?token={subscription.verification_token}">Unsubscribe</a>
         </p>

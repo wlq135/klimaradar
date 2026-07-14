@@ -87,6 +87,7 @@ class AlertSubscriptionCreate(BaseModel):
     min_btu: int | None = None
     max_price: float | None = None
     in_stock_only: bool = True
+    frequency: str = "immediate"
 
     @field_validator("city", "product_type", mode="before")
     @classmethod
@@ -98,6 +99,14 @@ class AlertSubscriptionCreate(BaseModel):
     def _blank_numeric_to_none(cls, value):
         if value == "" or value is None:
             return None
+        return value
+
+    @field_validator("frequency", mode="before")
+    @classmethod
+    def _valid_frequency(cls, value):
+        value = (value or "immediate").lower()
+        if value not in {"immediate", "daily"}:
+            raise ValueError("frequency must be 'immediate' or 'daily'")
         return value
 
 
@@ -112,6 +121,7 @@ class AlertSubscriptionOut(BaseModel):
     min_btu: int | None
     max_price: float | None
     in_stock_only: bool
+    frequency: str
     verified: bool
     active: bool
     created_at: str

@@ -39,6 +39,13 @@ class ProductType(str, enum.Enum):
     EVAPORATIVE = "evaporative"
 
 
+class AlertFrequency(str, enum.Enum):
+    """How often a subscriber wants to receive alert emails."""
+
+    IMMEDIATE = "immediate"
+    DAILY = "daily"
+
+
 class Product(Base):
     """A canonical product (e.g. Midea 9000 BTU portable AC)."""
 
@@ -168,6 +175,12 @@ class AlertSubscription(Base):
     verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     verification_token: Mapped[str | None] = mapped_column(String(64), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    frequency: Mapped[str] = mapped_column(
+        String(20), default=AlertFrequency.IMMEDIATE.value, nullable=False
+    )
+    digest_last_sent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -176,6 +189,9 @@ class AlertSubscription(Base):
 
     alert_logs: Mapped[list["AlertLog"]] = relationship(
         "AlertLog", back_populates="subscription", lazy="selectin"
+    )
+    alert_digests: Mapped[list["AlertDigest"]] = relationship(
+        "AlertDigest", back_populates="subscription", lazy="selectin"
     )
 
 
@@ -202,6 +218,32 @@ class AlertLog(Base):
     subscription: Mapped["AlertSubscription"] = relationship(
         "AlertSubscription", back_populates="alert_logs"
     )
+
+
+class AlertDigest(Base):
+    """Queued alert match waiting to be included in a daily digest email."""
+
+    __tablename__ = "alert_digests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    subscription_id: Mapped[int] = mapped_column(
+        ForeignKey("alert_subscriptions.id"), nullable=False, index=True
+    )
+    listing_id: Mapped[int] = mapped_column(
+        ForeignKey("listings.id"), nullable=False, index=True
+    )
+    event_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    subscription: Mapped["AlertSubscription"] = relationship(
+        "AlertSubscription", back_populates="alert_digests"
+    )
+    listing: Mapped["Listing"] = relationship("Listing")
 
 
 class ClickEvent(Base):

@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
-from app.database import engine
+from app.database import engine, run_migrations
 from app.models import Base, Retailer
 from app.routers import alerts, billing, feedback, pages
 from app.templating import templates
@@ -29,6 +29,8 @@ async def lifespan(app: FastAPI):
     """Create tables, seed demo data and start the scraper scheduler."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    await run_migrations()
 
     # Always ensure retailers are up to date. Demo listings are only generated
     # when ENABLE_DEMO is true.

@@ -126,6 +126,7 @@ async def subscribe(
         min_btu=payload.min_btu,
         max_price=payload.max_price,
         in_stock_only=payload.in_stock_only,
+        frequency=payload.frequency,
         verification_token=token,
     )
     session.add(sub)

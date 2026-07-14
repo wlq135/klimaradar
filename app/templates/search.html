@@ -135,6 +135,11 @@
       <input type="hidden" name="min_btu" value="{{ filters.min_btu or '' }}">
       <input type="hidden" name="max_price" value="{{ filters.max_price or '' }}">
       <input type="hidden" name="in_stock_only" value="true">
+      <label class="block text-sm font-medium mb-1">Alert frequency</label>
+      <select name="frequency" class="w-full rounded-lg border border-slate-300 px-3 py-2 mb-4">
+        <option value="immediate">Instant — one email per match</option>
+        <option value="daily">Daily digest — one summary email per day</option>
+      </select>
       <label class="block text-sm font-medium mb-1">Email</label>
       <input type="email" name="email" required class="w-full rounded-lg border border-slate-300 px-3 py-2 mb-4">
       <div class="flex justify-end gap-2">
