@@ -32,6 +32,7 @@ from app.seo import (
     list_cities_for_country,
 )
 from app.services.affiliate import tag_url
+from app.services.paddle import list_checkout_domains
 from app.services.scraper import run_scrape
 from app.templating import templates
 
@@ -454,6 +455,29 @@ async def trigger_scrape(
         raise HTTPException(status_code=403, detail="Invalid admin API key")
     results = await run_scrape(country=country)
     return {"results": results}
+
+
+@router.get("/api/admin/paddle/checkout-domains")
+async def paddle_checkout_domains(
+    request: Request,
+    x_admin_api_key: str | None = Header(None, alias="X-Admin-API-Key"),
+):
+    """Check Paddle checkout domain approval status. Requires admin API key."""
+    await admin_scrape_limiter.check(_client_ip(request))
+    if not settings.admin_api_key:
+        raise HTTPException(
+            status_code=503, detail="Admin endpoint is not configured"
+        )
+    if x_admin_api_key != settings.admin_api_key:
+        raise HTTPException(status_code=403, detail="Invalid admin API key")
+    try:
+        domains = await list_checkout_domains()
+    except RuntimeError as exc:
+        logger.warning("Failed to fetch Paddle checkout domains: %s", exc)
+        raise HTTPException(
+            status_code=502, detail="Unable to fetch domain status from Paddle"
+        ) from exc
+    return {"environment": settings.paddle_environment, "domains": domains}
 
 
 async def _get_stats(session: AsyncSession) -> StatsOut:

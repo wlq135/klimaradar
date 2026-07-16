@@ -80,6 +80,47 @@ async def create_checkout(email: str) -> dict[str, str]:
     }
 
 
+async def list_checkout_domains() -> list[dict]:
+    """List Paddle checkout domains and their approval status.
+
+    Calls the Paddle Billing ``GET /checkout-domains`` endpoint using the
+    ``Paddle-Version: 1`` header. Returns a simplified list of domain objects
+    containing ``id``, ``domain``, ``approval_status`` and ``created_at``.
+    """
+    if not settings.paddle_api_key:
+        raise RuntimeError("Paddle API key must be configured")
+
+    headers = _headers()
+    headers["Paddle-Version"] = "1"
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{_api_base()}/checkout-domains",
+            headers=headers,
+            timeout=30.0,
+        )
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError:
+            logger.error(
+                "Paddle /checkout-domains failed: status=%s body=%s",
+                response.status_code,
+                response.text,
+            )
+            raise RuntimeError("Failed to fetch Paddle checkout domains")
+        data = response.json().get("data", [])
+
+    return [
+        {
+            "id": domain.get("id"),
+            "domain": domain.get("domain"),
+            "approval_status": domain.get("approval_status"),
+            "created_at": domain.get("created_at"),
+        }
+        for domain in data
+    ]
+
+
 def verify_paddle_signature(secret: str, body: bytes, signature_header: str) -> bool:
     """Verify the ``Paddle-Signature`` header on a webhook request.
 
