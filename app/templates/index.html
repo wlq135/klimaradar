@@ -1,11 +1,18 @@
 {% extends "base.html" %}
 
+{% set flags = {'DE':'🇩🇪','FR':'🇫🇷','IT':'🇮🇹','ES':'🇪🇸','NL':'🇳🇱','BE':'🇧🇪'} %}
+
 {% block extra_head %}
 {% if structured_data %}
 <script type="application/ld+json">
 {{ structured_data|safe }}
 </script>
 {% endif %}
+<style>
+  details > summary { list-style: none; cursor: pointer; }
+  details > summary::-webkit-details-marker { display: none; }
+  details[open] .chevron { transform: rotate(180deg); }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -13,17 +20,17 @@
   <div class="max-w-4xl mx-auto px-4 text-center">
     <h1 class="text-4xl md:text-5xl font-extrabold mb-4">Stop refreshing retailer sites.</h1>
     <p class="text-lg md:text-xl text-blue-100 mb-8">
-      KlimaRadar tracks portable AC stock and prices across Germany, France, Italy, Spain, the Netherlands and Belgium.
+      KlimaRadar tracks portable AC stock and prices across 🇩🇪 Germany, 🇫🇷 France, 🇮🇹 Italy, 🇪🇸 Spain, 🇳🇱 the Netherlands and 🇧🇪 Belgium.
       Get an email the moment a unit is available.
     </p>
     <form action="/search" method="get" class="bg-white rounded-xl p-4 shadow-lg max-w-2xl mx-auto flex flex-col md:flex-row gap-3">
       <select name="country" class="md:w-1/4 rounded-lg border-slate-300 px-4 py-3 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none">
-        <option value="DE">Germany</option>
-        <option value="FR">France</option>
-        <option value="IT">Italy</option>
-        <option value="ES">Spain</option>
-        <option value="NL">Netherlands</option>
-        <option value="BE">Belgium</option>
+        <option value="DE">🇩🇪 Germany</option>
+        <option value="FR">🇫🇷 France</option>
+        <option value="IT">🇮🇹 Italy</option>
+        <option value="ES">🇪🇸 Spain</option>
+        <option value="NL">🇳🇱 Netherlands</option>
+        <option value="BE">🇧🇪 Belgium</option>
       </select>
       <input type="text" name="city" placeholder="City (e.g. Berlin)" class="md:w-1/3 rounded-lg border-slate-300 px-4 py-3 text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none">
       <button type="submit" class="md:w-1/3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-6 py-3 transition">
@@ -57,15 +64,23 @@
     <h2 class="text-2xl font-bold mb-6">Popular searches</h2>
 
     {% for country in popular_searches %}
-    <h3 class="text-lg font-semibold mb-3">{{ country.name }}</h3>
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-      {% for city in country.cities %}
-      <a href="/{{ country.code|lower }}/{{ city.slug }}/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
-        <h3 class="font-semibold text-blue-600">Portable AC in {{ city.display_name }}</h3>
-        <p class="text-sm text-slate-500">See in-stock units in {{ city.region }}.</p>
-      </a>
-      {% endfor %}
-    </div>
+    <details class="mb-4 group" {% if loop.index <= 2 %}open{% endif %}>
+      <summary class="flex items-center gap-3 bg-white rounded-lg shadow px-4 py-3 select-none">
+        <span class="text-2xl">{{ flags.get(country.code, '') }}</span>
+        <span class="text-lg font-semibold">{{ country.name }}</span>
+        <svg class="chevron ml-auto w-5 h-5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
+        </svg>
+      </summary>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-4">
+        {% for city in country.cities %}
+        <a href="/{{ country.code|lower }}/{{ city.slug }}/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+          <h3 class="font-semibold text-blue-600">Portable AC in {{ city.display_name }}</h3>
+          <p class="text-sm text-slate-500">See in-stock units in {{ city.region }}.</p>
+        </a>
+        {% endfor %}
+      </div>
+    </details>
     {% endfor %}
   </div>
 </section>
