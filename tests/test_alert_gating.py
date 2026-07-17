@@ -24,8 +24,8 @@ def patch_paddle_checkout(monkeypatch):
 
     async def fake_create_checkout(email: str) -> dict:
         return {
-            "transaction_id": "txn_test",
-            "checkout_url": "https://test-checkout.paddle.com",
+            "checkout_id": "checkout_test",
+            "checkout_url": "https://test-checkout.lemonsqueezy.com",
         }
 
     monkeypatch.setattr("app.routers.alerts.create_checkout", fake_create_checkout)
@@ -111,7 +111,8 @@ async def test_second_alert_requires_upgrade(client):
     assert response.status_code == 402
     detail = response.json()["detail"]
     assert "upgrade" in detail["message"].lower()
-    assert detail["upgrade_url"] == "https://test-checkout.paddle.com"
+    assert detail["upgrade_url"] == "https://test-checkout.lemonsqueezy.com"
+    assert detail["checkout_id"] == "checkout_test"
 
 
 @pytest.mark.asyncio

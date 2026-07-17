@@ -61,6 +61,14 @@ services:
         sync: false
       - key: PADDLE_PRICE_ID
         sync: false
+      - key: LEMON_SQUEEZY_API_KEY
+        sync: false
+      - key: LEMON_SQUEEZY_WEBHOOK_SECRET
+        sync: false
+      - key: LEMON_SQUEEZY_STORE_ID
+        sync: false
+      - key: LEMON_SQUEEZY_VARIANT_ID
+        sync: false
     healthCheckPath: /api/health
     disk:
       name: klimaradar-data

@@ -76,7 +76,7 @@
     </div>
 
     <div class="mt-12 text-center text-sm text-slate-500">
-      <p>Payments are processed securely by Paddle. EU VAT is included.</p>
+      <p>Payments are processed securely by Lemon Squeezy. EU VAT is included.</p>
       <p class="mt-2">
         By upgrading you agree to our
         <a href="/terms" class="text-blue-600 hover:underline">Terms of Service</a>,
@@ -102,7 +102,7 @@ document.getElementById('pricing-checkout-form').addEventListener('submit', asyn
   messageEl.textContent = '';
 
   try {
-    const res = await fetch('/api/billing/checkout', {
+    const res = await fetch('/api/billing/lemon-squeezy/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify({ email })
@@ -117,7 +117,7 @@ document.getElementById('pricing-checkout-form').addEventListener('submit', asyn
 
     if (res.ok && json.checkout_url) {
       window.open(json.checkout_url, '_blank');
-      messageEl.textContent = 'Checkout opened in a new tab. Complete payment there; your account will be activated automatically.';
+      messageEl.textContent = 'Checkout opened in a new tab (ID: ' + json.checkout_id + '). Complete payment there; your account will be activated automatically.';
     } else {
       messageEl.textContent = json.detail || json.message || 'Something went wrong.';
       btn.disabled = false;

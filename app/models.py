@@ -327,6 +327,30 @@ class PaddlePayment(Base):
     )
 
 
+class LemonSqueezyPayment(Base):
+    """Audit log of Lemon Squeezy webhook events."""
+
+    __tablename__ = "lemon_squeezy_payments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    event_id: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    event_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    order_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    checkout_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    amount: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False)
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    refunded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 class Feedback(Base):
     """User-submitted feedback about the site."""
 

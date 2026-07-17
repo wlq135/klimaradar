@@ -80,6 +80,12 @@ class Settings(BaseSettings):
     paddle_webhook_secret: str = ""
     paddle_price_id: str = ""  # e.g. pri_...
 
+    # Lemon Squeezy billing integration (new default checkout).
+    lemon_squeezy_api_key: str = ""
+    lemon_squeezy_webhook_secret: str = ""
+    lemon_squeezy_store_id: str = ""
+    lemon_squeezy_variant_id: str = ""
+
     scraper_interval_minutes: int = 60
     request_timeout_seconds: int = 30
     user_agent: str = (
