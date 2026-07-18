@@ -76,7 +76,7 @@
     </div>
 
     <div class="mt-12 text-center text-sm text-slate-500">
-      <p>Payments are processed securely by Lemon Squeezy. EU VAT is included.</p>
+      <p>Payments are processed securely by Creem. EU VAT is included.</p>
       <p class="mt-2">
         By upgrading you agree to our
         <a href="/terms" class="text-blue-600 hover:underline">Terms of Service</a>,
@@ -102,7 +102,7 @@ document.getElementById('pricing-checkout-form').addEventListener('submit', asyn
   messageEl.textContent = '';
 
   try {
-    const res = await fetch('/api/billing/lemon-squeezy/checkout', {
+    const res = await fetch('/api/billing/creem/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify({ email })

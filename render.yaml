@@ -69,6 +69,14 @@ services:
         sync: false
       - key: LEMON_SQUEEZY_VARIANT_ID
         sync: false
+      - key: CREEM_API_KEY
+        sync: false
+      - key: CREEM_WEBHOOK_SECRET
+        sync: false
+      - key: CREEM_PRODUCT_ID
+        sync: false
+      - key: CREEM_API_BASE
+        value: "https://api.creem.io/v1"
     healthCheckPath: /api/health
     disk:
       name: klimaradar-data

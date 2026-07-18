@@ -16,7 +16,7 @@ from app.models import AlertSubscription
 from app.rate_limit import subscribe_limiter
 from app.schemas import AlertSubscriptionCreate
 from app.services.alerter import get_email_backend
-from app.services.lemon_squeezy import can_create_alert, create_checkout
+from app.services.creem import can_create_alert, create_checkout
 from app.templating import templates
 
 logger = logging.getLogger(__name__)

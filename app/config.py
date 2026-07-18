@@ -80,11 +80,17 @@ class Settings(BaseSettings):
     paddle_webhook_secret: str = ""
     paddle_price_id: str = ""  # e.g. pri_...
 
-    # Lemon Squeezy billing integration (new default checkout).
+    # Lemon Squeezy billing integration (legacy; kept for existing webhooks).
     lemon_squeezy_api_key: str = ""
     lemon_squeezy_webhook_secret: str = ""
     lemon_squeezy_store_id: str = ""
     lemon_squeezy_variant_id: str = ""
+
+    # Creem billing integration (new default checkout).
+    creem_api_key: str = ""
+    creem_webhook_secret: str = ""
+    creem_product_id: str = ""
+    creem_api_base: str = "https://api.creem.io/v1"
 
     scraper_interval_minutes: int = 60
     request_timeout_seconds: int = 30
