@@ -191,7 +191,7 @@ async def creem_webhook(
     body = await request.body()
     signature_header = request.headers.get("creem-signature", "")
 
-    if not settings.creem_webhook_secret:
+    if not settings.creem_webhook_secret or not settings.creem_webhook_secret.strip():
         logger.warning("Creem webhook secret not configured; rejecting webhook")
         raise HTTPException(status_code=400, detail="Webhook not configured")
 

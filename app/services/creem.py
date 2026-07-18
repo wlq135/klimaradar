@@ -97,13 +97,24 @@ def verify_signature(secret: str, body: bytes, signature_header: str) -> bool:
     """Verify the ``creem-signature`` header on a webhook request.
 
     The signature is computed as ``HMAC-SHA256(secret, body).hexdigest()``.
+    The secret is stripped of surrounding whitespace to tolerate copy-paste
+    errors in environment variables.
     """
+    cleaned_secret = secret.strip()
     computed = hmac.new(
-        secret.encode("utf-8"),
+        cleaned_secret.encode("utf-8"),
         body,
         hashlib.sha256,
     ).hexdigest()
-    return hmac.compare_digest(computed, signature_header)
+    match = hmac.compare_digest(computed, signature_header)
+    if not match:
+        logger.warning(
+            "Creem signature mismatch: computed=%s... received=%s... body_len=%s",
+            computed[:8],
+            signature_header[:8] if signature_header else "",
+            len(body),
+        )
+    return match
 
 
 def _email_from_event(obj: dict) -> str | None:
