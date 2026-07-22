@@ -301,3 +301,42 @@ async def test_creem_webhook_refund_revokes_access(client, db_session):
     )
     assert customer.is_paid is False
     assert customer.revoked_at is not None
+
+
+@pytest.mark.asyncio
+async def test_reconcile_missing_creem_email(db_session, monkeypatch):
+    payment = CreemPayment(
+        event_id="evt_reconcile",
+        event_type="checkout.completed",
+        checkout_id="ch_reconcile",
+        order_id="ord_reconcile",
+        email=None,
+        payload_json=json.dumps({}),
+    )
+    db_session.add(payment)
+    await db_session.commit()
+
+    async def fake_fetch_checkout(checkout_id: str) -> dict | None:
+        return {
+            "id": checkout_id,
+            "metadata": {"email": "reconciled@example.com"},
+        }
+
+    monkeypatch.setattr(
+        "app.services.creem.fetch_checkout", fake_fetch_checkout
+    )
+
+    from app.services.creem import reconcile_missing_creem_emails
+
+    fixed = await reconcile_missing_creem_emails(db_session)
+    assert fixed == 1
+
+    customer = await db_session.scalar(
+        select(PaidCustomer).where(PaidCustomer.email == "reconciled@example.com")
+    )
+    assert customer is not None
+    assert customer.is_paid is True
+
+    refreshed_payment = await db_session.get(CreemPayment, payment.id)
+    assert refreshed_payment.email == "reconciled@example.com"
+    assert refreshed_payment.paid_at is not None

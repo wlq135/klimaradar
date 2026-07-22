@@ -325,3 +325,92 @@ async def can_create_alert(session: AsyncSession, email: str) -> dict[str, bool]
         return {"allowed": True, "paid": True}
     count = await active_alert_count(session, email)
     return {"allowed": count < _FREE_ALERT_LIMIT, "paid": False}
+
+
+async def fetch_checkout(checkout_id: str) -> dict | None:
+    """Fetch a checkout from Creem by id.
+
+    Tries the path-style endpoint first, then falls back to a query parameter.
+    Returns None if Creem reports 404 or if the API is not configured.
+    """
+    if not settings.creem_api_key:
+        return None
+
+    async with httpx.AsyncClient() as client:
+        for url in (
+            f"{_api_base()}/checkouts/{checkout_id}",
+            f"{_api_base()}/checkouts?checkout_id={checkout_id}",
+        ):
+            try:
+                response = await client.get(
+                    url,
+                    headers=_headers(),
+                    timeout=30.0,
+                )
+            except httpx.HTTPError:
+                continue
+            if response.status_code == 404:
+                return None
+            if response.status_code == 200:
+                return response.json()
+    return None
+
+
+async def reconcile_missing_creem_emails(session: AsyncSession) -> int:
+    """Backfill paid access for Creem payments whose webhook email was missing.
+
+    Some live-mode events were processed before the email-extraction fallback was
+    robust. This function looks up the original checkout metadata from Creem and
+    grants access when an email can be recovered.
+    """
+    stmt = select(CreemPayment).where(
+        CreemPayment.email.is_(None),
+        CreemPayment.event_type == "checkout.completed",
+        CreemPayment.checkout_id.is_not(None),
+    )
+    result = await session.execute(stmt)
+    payments = result.scalars().all()
+    if not payments:
+        return 0
+
+    fixed = 0
+    now = datetime.now(timezone.utc)
+    for payment in payments:
+        checkout_data = await fetch_checkout(payment.checkout_id)
+        if not checkout_data:
+            logger.warning(
+                "Could not fetch checkout %s for payment %s", payment.checkout_id, payment.event_id
+            )
+            continue
+
+        email = None
+        metadata = checkout_data.get("metadata") or {}
+        if isinstance(metadata, dict):
+            email = metadata.get("email")
+        customer = checkout_data.get("customer") or {}
+        if not email and isinstance(customer, dict):
+            email = customer.get("email")
+
+        if not isinstance(email, str) or not email:
+            logger.warning(
+                "No email found in checkout %s for payment %s", payment.checkout_id, payment.event_id
+            )
+            continue
+
+        email = email.lower()
+        customer = await _get_or_create_paid_customer(session, email)
+        customer.is_paid = True
+        customer.paid_at = now
+        customer.revoked_at = None
+        payment.email = email
+        payment.paid_at = now
+        fixed += 1
+        logger.info(
+            "Reconciled Creem payment %s -> %s from checkout metadata",
+            payment.event_id,
+            email,
+        )
+
+    if fixed:
+        await session.commit()
+    return fixed

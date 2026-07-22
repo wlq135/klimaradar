@@ -14,6 +14,7 @@ from app.config import settings
 from app.database import engine, run_migrations
 from app.models import Base, Retailer
 from app.routers import alerts, billing, feedback, pages
+from app.services.creem import reconcile_missing_creem_emails
 from app.templating import templates
 from app.cloudflare import is_cloudflare_request
 
@@ -48,6 +49,17 @@ async def lifespan(app: FastAPI):
     scheduler = create_scheduler()
     scheduler.start()
     logger.info("Scraper scheduler started (every %s minutes)", settings.scraper_interval_minutes)
+
+    # Backfill any live payments whose webhook email was not captured earlier.
+    try:
+        from app.database import AsyncSessionLocal
+
+        async with AsyncSessionLocal() as session:
+            fixed = await reconcile_missing_creem_emails(session)
+            if fixed:
+                logger.info("Reconciled %s missing Creem payment email(s)", fixed)
+    except Exception:
+        logger.exception("Failed to reconcile missing Creem emails")
 
     yield
 
