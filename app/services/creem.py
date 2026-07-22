@@ -117,18 +117,24 @@ def verify_signature(secret: str, body: bytes, signature_header: str) -> bool:
     return match
 
 
-def _email_from_event(obj: dict) -> str | None:
-    """Extract the customer email from a Creem event object."""
-    customer = obj.get("customer") or {}
-    if isinstance(customer, dict):
-        email = customer.get("email")
-        if isinstance(email, str) and email:
-            return email.lower()
-    metadata = obj.get("metadata") or {}
-    if isinstance(metadata, dict):
-        email = metadata.get("email")
-        if isinstance(email, str) and email:
-            return email.lower()
+def _email_from_event(event: dict, obj: dict) -> str | None:
+    """Extract the customer email from a Creem event.
+
+    Some events nest the email under ``object.customer`` or
+    ``object.metadata.email``; others put it at the top-level
+    ``metadata.email``. We check all common locations.
+    """
+    for source in (obj, event):
+        customer = source.get("customer") or {}
+        if isinstance(customer, dict):
+            email = customer.get("email")
+            if isinstance(email, str) and email:
+                return email.lower()
+        metadata = source.get("metadata") or {}
+        if isinstance(metadata, dict):
+            email = metadata.get("email")
+            if isinstance(email, str) and email:
+                return email.lower()
     return None
 
 
@@ -187,7 +193,7 @@ async def handle_creem_event(session: AsyncSession, event: dict) -> None:
     customer = obj.get("customer") or {}
     if isinstance(customer, dict):
         customer_id = customer.get("id")
-    email = _email_from_event(obj)
+    email = _email_from_event(event, obj)
     product_id = None
     product = obj.get("product") or {}
     if isinstance(product, dict):
@@ -199,6 +205,16 @@ async def handle_creem_event(session: AsyncSession, event: dict) -> None:
 
     amount = _amount_to_str(obj.get("amount"))
     currency = obj.get("currency")
+
+    logger.info(
+        "Processing Creem event: id=%s type=%s order_id=%s email=%s product_id=%s status=%s",
+        event_id,
+        event_type,
+        order_id,
+        email,
+        product_id,
+        status,
+    )
 
     payment = CreemPayment(
         event_id=event_id,
@@ -224,6 +240,7 @@ async def handle_creem_event(session: AsyncSession, event: dict) -> None:
             customer.paid_at = now
             customer.revoked_at = None
             payment.paid_at = now
+            logger.info("Granted paid access to %s from Creem event %s", email, event_id)
         else:
             logger.warning("Creem checkout.completed event missing email: %s", event_id)
 
