@@ -12,7 +12,10 @@ from app.database import get_db
 from app.rate_limit import billing_limiter
 from app.services.creem import (
     create_checkout as create_creem_checkout,
+    get_session_status as get_creem_session_status,
     handle_creem_event,
+    has_paid_access as has_creem_paid_access,
+    record_checkout_session as record_creem_checkout_session,
     verify_signature as verify_creem_signature,
 )
 from app.services.lemon_squeezy import (
@@ -49,8 +52,21 @@ class LemonSqueezyCheckoutResponse(BaseModel):
 
 
 class CreemCheckoutResponse(BaseModel):
-    checkout_url: str
-    checkout_id: str
+    checkout_url: str | None = None
+    checkout_id: str | None = None
+    already_paid: bool = False
+    message: str | None = None
+
+
+class CreemStatusResponse(BaseModel):
+    email: str
+    paid: bool
+
+
+class CreemSessionStatusResponse(BaseModel):
+    email: str
+    paid: bool
+    checkout_id: str | None = None
 
 
 @router.post("/checkout", response_model=CheckoutResponse)
@@ -168,6 +184,13 @@ async def creem_checkout(
 ):
     """Create a Creem checkout for unlimited alerts."""
     await billing_limiter.check(_client_ip(request))
+
+    if await has_creem_paid_access(session, payload.email):
+        return CreemCheckoutResponse(
+            already_paid=True,
+            message="This email already has unlimited alerts. No need to pay again.",
+        )
+
     try:
         result = await create_creem_checkout(payload.email)
     except Exception as exc:
@@ -176,7 +199,44 @@ async def creem_checkout(
             status_code=500,
             detail="Unable to start checkout. Please try again later.",
         ) from exc
-    return CreemCheckoutResponse(**result)
+
+    await record_creem_checkout_session(
+        session,
+        result["request_id"],
+        payload.email,
+        result["checkout_id"],
+    )
+
+    return CreemCheckoutResponse(
+        checkout_url=result["checkout_url"],
+        checkout_id=result["checkout_id"],
+    )
+
+
+@router.get("/creem/status", response_model=CreemStatusResponse)
+async def creem_status(
+    email: EmailStr,
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+):
+    """Return whether an email address has active paid access."""
+    await billing_limiter.check(_client_ip(request))
+    paid = await has_creem_paid_access(session, email)
+    return CreemStatusResponse(email=email.lower(), paid=paid)
+
+
+@router.get("/creem/session-status", response_model=CreemSessionStatusResponse)
+async def creem_session_status(
+    request_id: str,
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+):
+    """Look up the email and paid status for a Creem checkout request_id."""
+    await billing_limiter.check(_client_ip(request))
+    status = await get_creem_session_status(session, request_id)
+    if status is None:
+        raise HTTPException(status_code=404, detail="Checkout session not found")
+    return CreemSessionStatusResponse(**status)
 
 
 @router.post("/webhooks/creem")

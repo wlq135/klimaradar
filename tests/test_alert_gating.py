@@ -26,6 +26,7 @@ def patch_paddle_checkout(monkeypatch):
         return {
             "checkout_id": "checkout_test",
             "checkout_url": "https://test-checkout.lemonsqueezy.com",
+            "request_id": "req_test_alert",
         }
 
     monkeypatch.setattr("app.routers.alerts.create_checkout", fake_create_checkout)

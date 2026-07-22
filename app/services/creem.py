@@ -20,7 +20,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models import CreemPayment, PaidCustomer
+from app.models import CreemCheckoutSession, CreemPayment, PaidCustomer
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ def _headers() -> dict[str, str]:
 
 
 def _success_url() -> str:
-    return f"{settings.base_url.rstrip('/')}/pricing"
+    return f"{settings.base_url.rstrip('/')}/pricing?success=1"
 
 
 def _amount_to_str(value) -> str | None:
@@ -57,10 +57,11 @@ async def create_checkout(email: str) -> dict[str, str]:
     if not settings.creem_product_id:
         raise RuntimeError("Creem product ID must be configured")
 
+    request_id = f"req_{uuid.uuid4().hex[:16]}"
     payload = {
         "product_id": settings.creem_product_id,
         "success_url": _success_url(),
-        "request_id": f"req_{uuid.uuid4().hex[:16]}",
+        "request_id": request_id,
         "metadata": {"email": email.lower()},
     }
 
@@ -90,6 +91,7 @@ async def create_checkout(email: str) -> dict[str, str]:
     return {
         "checkout_id": checkout_id,
         "checkout_url": checkout_url,
+        "request_id": request_id,
     }
 
 
@@ -263,6 +265,38 @@ async def handle_creem_event(session: AsyncSession, event: dict) -> None:
     except IntegrityError:
         await session.rollback()
         logger.warning("IntegrityError processing Creem event %s", event_id)
+
+
+async def record_checkout_session(
+    session: AsyncSession, request_id: str, email: str, checkout_id: str
+) -> CreemCheckoutSession:
+    """Persist the request_id -> email mapping for post-redirect lookups."""
+    checkout_session = CreemCheckoutSession(
+        request_id=request_id,
+        email=email.lower(),
+        checkout_id=checkout_id,
+    )
+    session.add(checkout_session)
+    await session.commit()
+    return checkout_session
+
+
+async def get_session_status(
+    session: AsyncSession, request_id: str
+) -> dict[str, object] | None:
+    """Return the email and paid status for a Creem checkout request_id."""
+    stmt = select(CreemCheckoutSession).where(
+        CreemCheckoutSession.request_id == request_id
+    )
+    checkout_session = await session.scalar(stmt)
+    if checkout_session is None:
+        return None
+    paid = await has_paid_access(session, checkout_session.email)
+    return {
+        "email": checkout_session.email,
+        "paid": paid,
+        "checkout_id": checkout_session.checkout_id,
+    }
 
 
 async def has_paid_access(session: AsyncSession, email: str) -> bool:

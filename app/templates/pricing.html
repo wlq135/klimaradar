@@ -62,9 +62,22 @@
           </li>
         </ul>
 
+        <div id="success-banner" class="hidden mb-4 bg-green-50 border border-green-200 text-green-800 rounded-lg p-4">
+          <p class="font-semibold">Payment received — thanks!</p>
+          <p class="text-sm">Enter the email you used below to confirm your account status.</p>
+        </div>
+
+        <div id="paid-banner" class="hidden mb-4 bg-green-50 border border-green-200 text-green-800 rounded-lg p-4">
+          <p class="font-semibold flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            You're subscribed!
+          </p>
+          <p class="text-sm">This email has unlimited alerts. You can create as many alerts as you need.</p>
+        </div>
+
         <form id="pricing-checkout-form" class="space-y-3">
           <label class="block text-sm font-medium text-slate-700">Email</label>
-          <input type="email" name="email" required placeholder="you@example.com"
+          <input type="email" name="email" id="pricing-email" required placeholder="you@example.com"
                  class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none">
           <button type="submit" id="pricing-checkout-btn"
                   class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-6 py-3 transition">
@@ -90,44 +103,158 @@
 </section>
 
 <script>
-document.getElementById('pricing-checkout-form').addEventListener('submit', async function (event) {
-  event.preventDefault();
-  const form = event.target;
+(function () {
+  const form = document.getElementById('pricing-checkout-form');
+  const emailInput = document.getElementById('pricing-email');
   const btn = document.getElementById('pricing-checkout-btn');
   const messageEl = document.getElementById('pricing-message');
-  const email = form.email.value.trim();
+  const successBanner = document.getElementById('success-banner');
+  const paidBanner = document.getElementById('paid-banner');
 
-  btn.disabled = true;
-  btn.textContent = 'Redirecting to checkout...';
-  messageEl.textContent = '';
+  function getQueryParam(name) {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(name);
+  }
 
-  try {
-    const res = await fetch('/api/billing/creem/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ email })
-    });
+  function setPaidState(email, message) {
+    form.style.display = 'none';
+    paidBanner.classList.remove('hidden');
+    paidBanner.querySelector('p.text-sm').textContent = message ||
+      `The email ${email} has unlimited alerts. You can create as many alerts as you need.`;
+    successBanner.classList.add('hidden');
+    messageEl.textContent = '';
+  }
 
-    let json;
-    try {
-      json = await res.json();
-    } catch (parseErr) {
-      json = { detail: 'Unexpected response. Please try again.' };
-    }
-
-    if (res.ok && json.checkout_url) {
-      window.open(json.checkout_url, '_blank');
-      messageEl.textContent = 'Checkout opened in a new tab (ID: ' + json.checkout_id + '). Complete payment there; your account will be activated automatically.';
-    } else {
-      messageEl.textContent = json.detail || json.message || 'Something went wrong.';
-      btn.disabled = false;
-      btn.textContent = 'Upgrade for €3';
-    }
-  } catch (err) {
-    messageEl.textContent = 'Network error. Please check your connection.';
+  function setUnpaidState() {
+    form.style.display = 'block';
+    paidBanner.classList.add('hidden');
     btn.disabled = false;
     btn.textContent = 'Upgrade for €3';
   }
-});
+
+  function setLoading(text) {
+    btn.disabled = true;
+    btn.textContent = text || 'Loading...';
+  }
+
+  async function checkStatus(email) {
+    if (!email) return;
+    messageEl.textContent = 'Checking status...';
+    try {
+      const res = await fetch(`/api/billing/creem/status?email=${encodeURIComponent(email)}`, {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!res.ok) {
+        messageEl.textContent = '';
+        return;
+      }
+      const json = await res.json();
+      if (json.paid) {
+        setPaidState(json.email, `The email ${json.email} is already subscribed to unlimited alerts.`);
+      } else {
+        setUnpaidState();
+        messageEl.textContent = '';
+      }
+    } catch (err) {
+      messageEl.textContent = '';
+    }
+  }
+
+  async function checkSessionStatus(requestId) {
+    setLoading('Confirming payment...');
+    try {
+      const res = await fetch(`/api/billing/creem/session-status?request_id=${encodeURIComponent(requestId)}`, {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!res.ok) {
+        messageEl.textContent = 'We could not confirm this payment session. Enter your email below to check manually.';
+        setUnpaidState();
+        return;
+      }
+      const json = await res.json();
+      emailInput.value = json.email;
+      if (json.paid) {
+        setPaidState(json.email, `Payment confirmed for ${json.email}. You now have unlimited alerts.`);
+      } else {
+        setUnpaidState();
+        messageEl.textContent = 'Payment is still being processed. If you just completed it, wait a few seconds and refresh.';
+      }
+    } catch (err) {
+      setUnpaidState();
+      messageEl.textContent = 'Network error while confirming payment. Enter your email below to check manually.';
+    }
+  }
+
+  // On page load: handle redirect from Creem, pre-fill email, and check status.
+  const requestId = getQueryParam('request_id');
+  const successFlag = getQueryParam('success');
+  const prefillEmail = getQueryParam('email');
+
+  if (prefillEmail) {
+    emailInput.value = prefillEmail;
+  }
+
+  if (requestId) {
+    checkSessionStatus(requestId);
+  } else {
+    if (successFlag === '1') {
+      successBanner.classList.remove('hidden');
+    }
+    if (prefillEmail) {
+      checkStatus(prefillEmail);
+    }
+  }
+
+  // Check status when the user leaves the email field.
+  let debounceTimer;
+  emailInput.addEventListener('input', function () {
+    clearTimeout(debounceTimer);
+    const email = emailInput.value.trim();
+    if (!email) return;
+    debounceTimer = setTimeout(() => checkStatus(email), 500);
+  });
+
+  form.addEventListener('submit', async function (event) {
+    event.preventDefault();
+    const email = emailInput.value.trim();
+
+    btn.disabled = true;
+    btn.textContent = 'Redirecting to checkout...';
+    messageEl.textContent = '';
+    successBanner.classList.add('hidden');
+
+    try {
+      const res = await fetch('/api/billing/creem/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      let json;
+      try {
+        json = await res.json();
+      } catch (parseErr) {
+        json = { detail: 'Unexpected response. Please try again.' };
+      }
+
+      if (res.ok && json.already_paid) {
+        setPaidState(email, `The email ${email} already has unlimited alerts.`);
+      } else if (res.ok && json.checkout_url) {
+        window.open(json.checkout_url, '_blank');
+        messageEl.textContent = 'Checkout opened in a new tab (ID: ' + json.checkout_id + '). Complete payment there; your account will be activated automatically.';
+        btn.disabled = false;
+        btn.textContent = 'Upgrade for €3';
+      } else {
+        messageEl.textContent = json.detail || json.message || 'Something went wrong.';
+        btn.disabled = false;
+        btn.textContent = 'Upgrade for €3';
+      }
+    } catch (err) {
+      messageEl.textContent = 'Network error. Please check your connection.';
+      btn.disabled = false;
+      btn.textContent = 'Upgrade for €3';
+    }
+  });
+})();
 </script>
 {% endblock %}

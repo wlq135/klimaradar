@@ -20,7 +20,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.config import settings
 from app.database import get_db
-from app.models import Base, CreemPayment, PaidCustomer
+from app.models import Base, CreemCheckoutSession, CreemPayment, PaidCustomer
 from app.rate_limit import billing_limiter
 from app.routers import billing, pages
 
@@ -118,11 +118,12 @@ def _refund_created_event(email: str, event_id: str = "evt_2") -> dict:
 
 
 @pytest.mark.asyncio
-async def test_create_creem_checkout(client, monkeypatch):
+async def test_create_creem_checkout(client, db_session, monkeypatch):
     async def fake_create_checkout(email: str) -> dict:
         return {
             "checkout_id": "ch_test",
             "checkout_url": "https://checkout.creem.io/ch_test",
+            "request_id": "req_test123",
         }
 
     monkeypatch.setattr(
@@ -137,6 +138,79 @@ async def test_create_creem_checkout(client, monkeypatch):
     data = response.json()
     assert data["checkout_id"] == "ch_test"
     assert data["checkout_url"] == "https://checkout.creem.io/ch_test"
+
+    checkout_session = await db_session.scalar(
+        select(CreemCheckoutSession).where(
+            CreemCheckoutSession.request_id == "req_test123"
+        )
+    )
+    assert checkout_session is not None
+    assert checkout_session.email == "user@example.com"
+
+
+@pytest.mark.asyncio
+async def test_creem_checkout_already_paid(client, db_session):
+    db_session.add(PaidCustomer(email="paid@example.com", is_paid=True))
+    await db_session.commit()
+
+    response = await client.post(
+        "/api/billing/creem/checkout",
+        json={"email": "paid@example.com"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["already_paid"] is True
+    assert data["checkout_url"] is None
+
+
+@pytest.mark.asyncio
+async def test_creem_status_endpoint(client, db_session):
+    db_session.add(PaidCustomer(email="status@example.com", is_paid=True))
+    await db_session.commit()
+
+    response = await client.get(
+        "/api/billing/creem/status?email=status@example.com"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["email"] == "status@example.com"
+    assert data["paid"] is True
+
+    response = await client.get(
+        "/api/billing/creem/status?email=unpaid@example.com"
+    )
+    assert response.status_code == 200
+    assert response.json()["paid"] is False
+
+
+@pytest.mark.asyncio
+async def test_creem_session_status_endpoint(client, db_session):
+    db_session.add(
+        CreemCheckoutSession(
+            request_id="req_session",
+            email="session@example.com",
+            checkout_id="ch_session",
+        )
+    )
+    db_session.add(PaidCustomer(email="session@example.com", is_paid=True))
+    await db_session.commit()
+
+    response = await client.get(
+        "/api/billing/creem/session-status?request_id=req_session"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["email"] == "session@example.com"
+    assert data["paid"] is True
+    assert data["checkout_id"] == "ch_session"
+
+
+@pytest.mark.asyncio
+async def test_creem_session_status_not_found(client):
+    response = await client.get(
+        "/api/billing/creem/session-status?request_id=req_missing"
+    )
+    assert response.status_code == 404
 
 
 @pytest.mark.asyncio

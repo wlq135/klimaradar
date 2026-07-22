@@ -377,6 +377,30 @@ class CreemPayment(Base):
     )
 
 
+class CreemCheckoutSession(Base):
+    """Maps a Creem checkout request_id to the email used at creation.
+
+    This lets the success page look up the paying email after Creem redirects
+    back with request_id in the query string.
+    """
+
+    __tablename__ = "creem_checkout_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    request_id: Mapped[str] = mapped_column(
+        String(64), nullable=False, unique=True, index=True
+    )
+    checkout_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    paid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class Feedback(Base):
     """User-submitted feedback about the site."""
 
