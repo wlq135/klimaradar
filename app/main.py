@@ -64,7 +64,33 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("Email backend: %s", email_backend.__class__.__name__)
 
-    # Backfill any live payments whose webhook email was not captured earlier.
+    # Warn about missing commercial-critical configuration so operators can
+    # fix gaps before real users hit them.
+    if not settings.admin_api_key:
+        logger.warning(
+            "ADMIN_API_KEY is not set; admin endpoints (manual scrape, etc.) "
+            "will reject all requests."
+        )
+    if not settings.creem_api_key:
+        logger.warning(
+            "CREEM_API_KEY is not set; paid subscriptions and checkout "
+            "will not function."
+        )
+    _affiliate_tags = [
+        settings.amazon_de_affiliate_tag, settings.amazon_fr_affiliate_tag,
+        settings.amazon_it_affiliate_tag, settings.amazon_es_affiliate_tag,
+        settings.amazon_nl_affiliate_tag, settings.amazon_be_affiliate_tag,
+        settings.mediamarkt_de_affiliate_tag, settings.boulanger_fr_affiliate_tag,
+        settings.darty_fr_affiliate_tag,
+    ]
+    _configured_tags = sum(1 for t in _affiliate_tags if t)
+    if _configured_tags == 0:
+        logger.warning(
+            "No affiliate tags configured; outbound links will not earn "
+            "commission. Set AMAZON_*_AFFILIATE_TAG etc. to monetize traffic."
+        )
+
+        # Backfill any live payments whose webhook email was not captured earlier.
     try:
         from app.database import AsyncSessionLocal
 

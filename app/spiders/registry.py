@@ -82,19 +82,23 @@ def get_spiders_for_country(
             spiders.append(DemoSpider(retailer_id=demo_id))
 
     # Playwright-based spiders for known retailers.
-    # Boulanger/Darty are heavily protected and require a proxy; skip them
-    # when no proxy is configured to avoid wasting memory and time.
+    # Amazon serves static-ish pages that Playwright can fetch without a
+    # proxy. Retailers behind DataDome or advanced bot detection (MediaMarkt,
+    # Boulanger, Darty) require a residential proxy and are skipped otherwise.
     playwright_spiders: list[tuple[str, str, type[Spider]]] = [
         ("DE", "Amazon Germany", AmazonDeSpider),
-        ("DE", "MediaMarkt Germany", MediaMarktDeSpider),
         ("FR", "Amazon France", AmazonFrSpider),
         ("IT", "Amazon Italy", AmazonItSpider),
         ("ES", "Amazon Spain", AmazonEsSpider),
         ("NL", "Amazon Netherlands", AmazonNlSpider),
         ("BE", "Amazon Belgium", AmazonBeSpider),
     ]
+    # Retailers protected by DataDome / advanced bot detection require a
+    # residential proxy. Skip them when no proxy is configured to avoid
+    # wasting a full browser launch per scrape cycle on guaranteed failures.
     if settings.playwright_proxy_server:
         playwright_spiders.extend([
+            ("DE", "MediaMarkt Germany", MediaMarktDeSpider),
             ("FR", "Boulanger France", BoulangerFrSpider),
             ("FR", "Darty France", DartyFrSpider),
         ])
