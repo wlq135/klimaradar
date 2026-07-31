@@ -38,8 +38,13 @@ def _headers() -> dict[str, str]:
     }
 
 
-def _success_url() -> str:
-    return f"{settings.base_url.rstrip('/')}/pricing?success=1"
+def _success_url(request_id: str | None = None) -> str:
+    base = f"{settings.base_url.rstrip('/')}/pricing?success=1"
+    # Include request_id so the pricing page can poll the session status and
+    # confirm to the user that unlimited access is active right after payment.
+    if request_id:
+        return f"{base}&request_id={request_id}"
+    return base
 
 
 def _amount_to_str(value) -> str | None:
@@ -60,7 +65,7 @@ async def create_checkout(email: str) -> dict[str, str]:
     request_id = f"req_{uuid.uuid4().hex[:16]}"
     payload = {
         "product_id": settings.creem_product_id,
-        "success_url": _success_url(),
+        "success_url": _success_url(request_id),
         "request_id": request_id,
         "metadata": {"email": email.lower()},
     }

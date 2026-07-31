@@ -340,3 +340,18 @@ async def test_reconcile_missing_creem_email(db_session, monkeypatch):
     refreshed_payment = await db_session.get(CreemPayment, payment.id)
     assert refreshed_payment.email == "reconciled@example.com"
     assert refreshed_payment.paid_at is not None
+
+
+def test_success_url_includes_request_id():
+    """The Creem success_url must carry request_id so the pricing page can
+    confirm to the user that unlimited access is active right after payment.
+    """
+    from app.services.creem import _success_url
+
+    url = _success_url("req_abc123")
+    assert "success=1" in url
+    assert "request_id=req_abc123" in url
+
+    plain = _success_url()
+    assert "success=1" in plain
+    assert "request_id" not in plain
