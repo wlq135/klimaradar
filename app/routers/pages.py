@@ -3,6 +3,7 @@
 import hashlib
 import json
 import logging
+import secrets
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
@@ -47,6 +48,30 @@ _DEFAULT_DESCRIPTION = (
 )
 
 router = APIRouter()
+
+
+def _freshness(seen_at) -> tuple[str, bool]:
+    """Return a (label, is_stale) pair relative to now for display on cards.
+
+    Stock data is most credible when fresh. Listings last seen more than
+    48h ago are flagged as stale so the UI can de-emphasise them.
+    """
+    if not seen_at:
+        return "Availability unknown", True
+    if seen_at.tzinfo is None:
+        seen_at = seen_at.replace(tzinfo=timezone.utc)
+    delta = datetime.now(timezone.utc) - seen_at
+    hours = delta.total_seconds() / 3600
+    if hours < 1:
+        return "Verified just now", False
+    if hours < 24:
+        return f"Verified {int(hours)}h ago", False
+    days = int(hours // 24)
+    if days == 1:
+        return "Verified 1d ago", False
+    if days <= 2:
+        return f"Verified {days}d ago", False
+    return f"Checked {days}d ago", True
 
 
 def _template_context(request: Request, **extra) -> dict:
@@ -451,7 +476,9 @@ async def trigger_scrape(
         raise HTTPException(
             status_code=503, detail="Admin endpoint is not configured"
         )
-    if x_admin_api_key != settings.admin_api_key:
+    if not x_admin_api_key or not secrets.compare_digest(
+        x_admin_api_key, settings.admin_api_key
+    ):
         raise HTTPException(status_code=403, detail="Invalid admin API key")
     results = await run_scrape(country=country)
     return {"results": results}
@@ -468,7 +495,9 @@ async def paddle_checkout_domains(
         raise HTTPException(
             status_code=503, detail="Admin endpoint is not configured"
         )
-    if x_admin_api_key != settings.admin_api_key:
+    if not x_admin_api_key or not secrets.compare_digest(
+        x_admin_api_key, settings.admin_api_key
+    ):
         raise HTTPException(status_code=403, detail="Invalid admin API key")
     try:
         domains = await list_checkout_domains()
@@ -551,6 +580,8 @@ async def _fetch_filtered_listings(
                 "btu_min": product.btu_min,
                 "btu_max": product.btu_max,
                 "affiliate_url": f"/go/{listing.id}",
+                "freshness_label": _freshness(listing.last_seen_at)[0],
+                "stale": _freshness(listing.last_seen_at)[1],
             }
         )
     return rows

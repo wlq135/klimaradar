@@ -158,3 +158,30 @@ async def test_homepage_has_structured_data(client):
     assert '"@type": "WebSite"' in text
     assert '"@type": "Organization"' in text
     assert '<html lang="en"' in text
+
+
+def test_freshness_labels_recent_and_stale():
+    """The _freshness helper classifies listings by age for the UI."""
+    from datetime import datetime, timedelta, timezone
+    from app.routers.pages import _freshness
+
+    now = datetime.now(timezone.utc)
+    label_none, stale_none = _freshness(None)
+    assert stale_none is True
+
+    label_now, stale_now = _freshness(now)
+    assert "just now" in label_now and stale_now is False
+
+    label_5h, stale_5h = _freshness(now - timedelta(hours=5))
+    assert "5h" in label_5h and stale_5h is False
+
+    label_1d, stale_1d = _freshness(now - timedelta(days=1))
+    assert "1d" in label_1d and stale_1d is False
+
+    label_5d, stale_5d = _freshness(now - timedelta(days=5))
+    assert "Checked" in label_5d and stale_5d is True
+
+    # Naive datetimes are treated as UTC without crashing.
+    label_naive, _ = _freshness(datetime.now(timezone.utc).replace(tzinfo=None))
+    assert isinstance(label_naive, str)
+
