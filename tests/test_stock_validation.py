@@ -1,0 +1,93 @@
+"""Tests for snapshot validation in upsert_listings."""
+
+import os
+
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ.setdefault("BASE_URL", "http://testserver")
+
+import pytest
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.models import Base, Listing, Product, Retailer
+from app.services.stock_monitor import upsert_listings
+from app.spiders.base import ListingSnapshot
+
+
+@pytest.fixture
+async def db_session():
+    engine = create_async_engine(
+        os.environ["DATABASE_URL"],
+        future=True,
+        connect_args={"check_same_thread": False},
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    async_session = sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with async_session() as session:
+        retailer = Retailer(name="TestShop", country="DE", domain="testshop.de")
+        session.add(retailer)
+        await session.commit()
+        session.retailer_id = retailer.id
+        yield session
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+    await engine.dispose()
+
+
+def _snap(name="Valid AC", url="https://t.de/p", price=299.0, stock_status="in_stock", sku="SKU1"):
+    return ListingSnapshot(
+        name=name, brand=None, sku=sku, url=url,
+        price=price, currency="EUR", stock_status=stock_status,
+        delivery_days=None, image_url=None, btu_min=None, btu_max=None,
+        product_type="portable",
+    )
+
+
+@pytest.mark.asyncio
+async def test_valid_snapshot_is_persisted(db_session):
+    stats = await upsert_listings(db_session, db_session.retailer_id, "DE", [_snap()])
+    assert stats["created"] == 1
+    listings = (await db_session.scalars(select(Listing))).all()
+    assert len(listings) == 1
+    assert listings[0].price == 299.0
+
+
+@pytest.mark.asyncio
+async def test_empty_name_is_rejected(db_session):
+    stats = await upsert_listings(db_session, db_session.retailer_id, "DE", [_snap(name="", url="https://t.de/p")])
+    assert stats["created"] == 0
+    listings = (await db_session.scalars(select(Listing))).all()
+    assert len(listings) == 0
+
+
+@pytest.mark.asyncio
+async def test_empty_url_is_rejected(db_session):
+    stats = await upsert_listings(db_session, db_session.retailer_id, "DE", [_snap(url="")])
+    assert stats["created"] == 0
+    listings = (await db_session.scalars(select(Listing))).all()
+    assert len(listings) == 0
+
+
+@pytest.mark.asyncio
+async def test_invalid_stock_status_is_rejected(db_session):
+    stats = await upsert_listings(
+        db_session, db_session.retailer_id, "DE",
+        [_snap(stock_status="bogus_status")],
+    )
+    assert stats["created"] == 0
+    listings = (await db_session.scalars(select(Listing))).all()
+    assert len(listings) == 0
+
+
+@pytest.mark.asyncio
+async def test_mixed_batch_keeps_only_valid(db_session):
+    snaps = [_snap(name=""), _snap(), _snap(stock_status="weird"), _snap(name="Second AC", url="https://t.de/p2", sku=None)]
+    stats = await upsert_listings(db_session, db_session.retailer_id, "DE", snaps)
+    assert stats["created"] == 2
+    listings = (await db_session.scalars(select(Listing))).all()
+    assert len(listings) == 2
+

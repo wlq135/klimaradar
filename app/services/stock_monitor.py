@@ -36,6 +36,18 @@ async def upsert_listings(
         raise ValueError(f"Retailer {retailer_id} not found")
 
     for snap in snapshots:
+        # Last line of defense: reject garbage snapshots (empty name or url,
+        # or invalid stock status) so a malformed scrape never pollutes the DB
+        # and reaches users. This catches e.g. a challenge page that parsed
+        # partially instead of failing outright.
+        if not snap.name or not snap.name.strip() or not snap.url:
+            logger.warning("Skipping invalid snapshot: name=%r url=%r", snap.name, snap.url)
+            continue
+        if snap.stock_status not in {
+            "in_stock", "out_of_stock", "back_order", "pre_order", "low_stock", "unknown"
+        }:
+            logger.warning("Skipping snapshot with invalid stock_status=%r", snap.stock_status)
+            continue
         product = await _get_or_create_product(session, snap)
         listing, is_new = await _get_or_create_listing(
             session, retailer_id, product.id, snap, country
