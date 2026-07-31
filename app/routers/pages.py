@@ -4,7 +4,7 @@ import hashlib
 import json
 import logging
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
@@ -511,8 +511,15 @@ async def paddle_checkout_domains(
 
 async def _get_stats(session: AsyncSession) -> StatsOut:
     total = await session.scalar(select(func.count(Listing.id)))
+    # Count only listings verified in the last 48h so the
+    # headline "In stock now" number reflects real availability, not stale
+    # data that may already be gone from the retailer.
+    fresh_cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
     in_stock = await session.scalar(
-        select(func.count(Listing.id)).where(Listing.stock_status == "in_stock")
+        select(func.count(Listing.id)).where(
+            Listing.stock_status == "in_stock",
+            Listing.last_seen_at >= fresh_cutoff,
+        )
     )
     countries = (
         await session.scalars(select(Listing.country).distinct())
