@@ -185,6 +185,13 @@ async def creem_checkout(
     """Create a Creem checkout for unlimited alerts."""
     await billing_limiter.check(_client_ip(request))
 
+    if not settings.creem_api_key:
+        logger.warning("Creem checkout attempted without CREEM_API_KEY")
+        raise HTTPException(
+            status_code=503,
+            detail="Payment system is not yet configured. Please try again later.",
+        )
+
     if await has_creem_paid_access(session, payload.email):
         return CreemCheckoutResponse(
             already_paid=True,
