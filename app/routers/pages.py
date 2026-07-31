@@ -541,7 +541,10 @@ async def _fetch_filtered_listings(
         .join(Retailer, Listing.retailer_id == Retailer.id)
         .where(Listing.country == filters.country)
         .order_by(
+            # In-stock first, then freshest data first (a stale listing may
+            # already be gone), then cheapest.
             (Listing.stock_status == "in_stock").desc(),
+            Listing.last_seen_at.desc().nullslast(),
             Listing.price.asc().nullslast(),
         )
     )
