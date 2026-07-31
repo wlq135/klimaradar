@@ -128,12 +128,21 @@ async def cloudflare_scheme(request, call_next):
 
 @app.middleware("http")
 async def security_headers(request, call_next):
-    """Add baseline security headers to every response."""
+    """Add baseline security headers to every response.
+
+    HSTS is only sent when the request arrives over HTTPS (detected via
+    X-Forwarded-Proto from the Render/Cloudflare proxy) to avoid breaking
+    local development over plain HTTP.
+    """
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    if request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https":
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
     return response
 
 
