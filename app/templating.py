@@ -1,5 +1,7 @@
 """Jinja2 template environment setup."""
 
+from datetime import datetime, timezone
+
 from pathlib import Path
 
 from fastapi.templating import Jinja2Templates
@@ -28,3 +30,7 @@ def stock_label(status: str) -> str:
 
 templates.env.filters["price"] = format_price
 templates.env.filters["stock_label"] = stock_label
+
+# Current UTC datetime, available in every template as `now` (e.g.
+# {{ now.year }}) so copyright and policy dates never go stale.
+templates.env.globals["now"] = datetime.now(timezone.utc)
