@@ -44,7 +44,7 @@ def _client_ip(request: Request) -> str:
 
 _DEFAULT_DESCRIPTION = (
     "Find portable air conditioners in stock across Europe. "
-    "KlimaRadar tracks real-time AC availability, prices and delivery times in Germany, France and beyond."
+    "KlimaRadar tracks up-to-the-minute AC availability, prices and delivery times in Germany, France and beyond."
 )
 
 router = APIRouter()
@@ -252,7 +252,7 @@ async def about(request: Request):
         _template_context(
             request,
             title="About KlimaRadar",
-            description="Learn what KlimaRadar does: real-time portable AC stock and price tracking across Europe.",
+            description="Learn what KlimaRadar does: up-to-the-minute portable AC stock and price tracking across Europe.",
         ),
     )
 

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ title }}</title>
-  <meta name="description" content="{{ description|default('Find portable air conditioners in stock across Europe. KlimaRadar tracks real-time AC availability, prices and delivery times in Germany, France and beyond.') }}">
+  <meta name="description" content="{{ description|default('Find portable air conditioners in stock across Europe. KlimaRadar tracks up-to-the-minute AC availability, prices and delivery times in Germany, France and beyond.') }}">
   <link rel="canonical" href="{{ canonical_url|default(request.url.scheme + '://' + request.url.netloc + request.url.path) }}">
 
   {% if hreflang_alternates %}
@@ -30,7 +30,7 @@
 
   <!-- Open Graph -->
   <meta property="og:title" content="{{ title }}">
-  <meta property="og:description" content="{{ description|default('Find portable air conditioners in stock across Europe. KlimaRadar tracks real-time AC availability, prices and delivery times in Germany, France and beyond.') }}">
+  <meta property="og:description" content="{{ description|default('Find portable air conditioners in stock across Europe. KlimaRadar tracks up-to-the-minute AC availability, prices and delivery times in Germany, France and beyond.') }}">
   <meta property="og:image" content="{{ request.url.scheme + '://' + request.url.netloc + '/static/img/placeholder.svg' }}">
   <meta property="og:type" content="website">
   <meta property="og:url" content="{{ canonical_url|default(request.url) }}">
@@ -39,7 +39,7 @@
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ title }}">
-  <meta name="twitter:description" content="{{ description|default('Find portable air conditioners in stock across Europe. KlimaRadar tracks real-time AC availability, prices and delivery times in Germany, France and beyond.') }}">
+  <meta name="twitter:description" content="{{ description|default('Find portable air conditioners in stock across Europe. KlimaRadar tracks up-to-the-minute AC availability, prices and delivery times in Germany, France and beyond.') }}">
   <meta name="twitter:image" content="{{ request.url.scheme + '://' + request.url.netloc + '/static/img/placeholder.svg' }}">
 
   <script src="https://cdn.tailwindcss.com"></script>

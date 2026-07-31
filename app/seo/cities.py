@@ -381,7 +381,7 @@ def build_website_organization_jsonld(base_url: str) -> dict:
                 "url": f"{base}/",
                 "description": (
                     "Find portable air conditioners in stock across Europe. "
-                    "KlimaRadar tracks real-time AC availability, prices and delivery times across multiple European countries."
+                    "KlimaRadar tracks up-to-the-minute AC availability, prices and delivery times across multiple European countries."
                 ),
                 "potentialAction": {
                     "@type": "SearchAction",
