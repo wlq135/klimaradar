@@ -1,6 +1,6 @@
 """Async database engine and session management."""
 
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -11,6 +11,26 @@ engine = create_async_engine(
     echo=settings.debug,
     future=True,
 )
+
+
+@event.listens_for(engine.sync_engine, "connect")
+def _set_sqlite_pragmas(dbapi_conn, connection_record):
+    """Enable WAL + busy timeout on every new SQLite connection.
+
+    Without WAL the background scraper holds an exclusive write lock that
+    blocks concurrent web reads ("database is locked"). WAL lets readers
+    and the single writer proceed in parallel, which is essential once the
+    site serves real traffic alongside a periodic scraper. No-op for non-
+    SQLite backends (e.g. PostgreSQL).
+    """
+    if "sqlite" not in settings.database_url:
+        return
+    cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA busy_timeout=5000")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA wal_autocheckpoint=1000")
+    cursor.close()
 
 AsyncSessionLocal = sessionmaker(
     bind=engine,

@@ -33,6 +33,14 @@ services:
         sync: false
       - key: AMAZON_FR_AFFILIATE_TAG
         sync: false
+      - key: AMAZON_IT_AFFILIATE_TAG
+        sync: false
+      - key: AMAZON_ES_AFFILIATE_TAG
+        sync: false
+      - key: AMAZON_NL_AFFILIATE_TAG
+        sync: false
+      - key: AMAZON_BE_AFFILIATE_TAG
+        sync: false
       - key: MEDIAMARKT_DE_AFFILIATE_TAG
         sync: false
       - key: BOULANGER_FR_AFFILIATE_TAG
