@@ -50,6 +50,20 @@ async def lifespan(app: FastAPI):
     scheduler.start()
     logger.info("Scraper scheduler started (every %s minutes)", settings.scraper_interval_minutes)
 
+    # Warn loudly if email delivery is not configured: alerts would silently
+    # fall through to the console backend (invisible in production) and paid
+    # users would never receive their notifications.
+    from app.services.alerter import get_email_backend
+    email_backend = get_email_backend()
+    if email_backend.__class__.__name__ == "ConsoleEmailBackend":
+        logger.warning(
+            "Email backend is ConsoleEmailBackend: SENDGRID_API_KEY, SMTP, "
+            "or BREVO_API_KEY is not set. Alert emails will NOT be delivered "
+            "in production. Configure an email provider before accepting payments."
+        )
+    else:
+        logger.info("Email backend: %s", email_backend.__class__.__name__)
+
     # Backfill any live payments whose webhook email was not captured earlier.
     try:
         from app.database import AsyncSessionLocal
