@@ -1,7 +1,7 @@
 """Configurable base spider for Amazon EU marketplaces."""
 
 import re
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from playwright.async_api import Page
 
@@ -21,6 +21,12 @@ class BaseAmazonSpider(PlaywrightSpider):
     default_query: str = "portable air conditioner"
     currency: str = "EUR"
     _LOCALE: str = "en-US"
+
+    # Minimum price in the listing currency. A real portable AC (with a
+    # compressor) never retails this cheap; this is a safety net that filters
+    # window seals, deflectors and toy mini coolers that slip the keyword
+    # filter. Only applied when a concrete price is known.
+    _MIN_PRICE: float = 50.0
 
     _INCLUDE_TITLE_WORDS: list[str] = [
         "air conditioner",
@@ -60,6 +66,23 @@ class BaseAmazonSpider(PlaywrightSpider):
         "heizlüfter",
         "heizung",
     ]
+    # Accessory terms shared by EVERY Amazon marketplace. Subclasses override
+    # _EXCLUDE_TITLE_WORDS with their own product-category words, but this list
+    # is defined only on the base class and checked by _is_relevant_title, so
+    # accessory filtering can never be accidentally dropped by a new subclass.
+    _ACCESSORY_WORDS: list[str] = [
+        "deflettore",            # IT: air deflector
+        "guarnizione",           # IT: gasket / window seal
+        "parabrezza",            # IT: deflector / windshield
+        "anti-zanzare",          # IT: anti-mosquito (window seal feature)
+        "anti-correnti d'aria",  # IT: anti-draft (deflector feature)
+        "junta de ventana",      # ES: window seal
+        "joint de porte",        # FR: sliding-door seal kit
+        "joint de fenêtre",      # FR: window seal
+        "fensterabdeckung",      # DE: window cover
+        "reißfest",              # DE: tear-resistant (window seal material)
+        "hot air stop",          # DE: window seal product feature
+    ]
 
     _UNAVAILABLE_MARKERS: list[str] = [
         "currently unavailable",
@@ -83,11 +106,15 @@ class BaseAmazonSpider(PlaywrightSpider):
         lower = title.lower()
         if any(word in lower for word in cls._EXCLUDE_TITLE_WORDS):
             return False
+        # Universal accessory filter: applies to every marketplace even when a
+        # subclass overrides _EXCLUDE_TITLE_WORDS.
+        if any(word in lower for word in cls._ACCESSORY_WORDS):
+            return False
         return any(word in lower for word in cls._INCLUDE_TITLE_WORDS)
 
     async def _pre_navigate(self, context) -> None:
         # Force EUR currency preference before loading the page.
-        parsed = __import__("urllib.parse").urlparse(self.domain)
+        parsed = urlparse(self.domain)
         cookie_domain = f".{parsed.netloc.replace('www.', '')}"
         await context.add_cookies(
             [
@@ -152,6 +179,10 @@ class BaseAmazonSpider(PlaywrightSpider):
             price_text = await self._extract_price(item)
             price = self._parse_price_text(price_text)
             currency = self._infer_currency(price_text)
+
+            # Safety net: drop obvious accessories / toy coolers by price.
+            if price is not None and price < self._MIN_PRICE:
+                continue
 
             stock_status = await self._infer_stock_status(item, price)
 

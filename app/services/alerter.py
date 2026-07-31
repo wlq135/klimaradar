@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 
@@ -63,11 +64,18 @@ class ConsoleEmailBackend(EmailBackend):
     """Prints emails to the console — useful for local development."""
 
     async def send(self, to_email: str, subject: str, body: str) -> bool:
+        # Some consoles (notably the default GBK codepage on Chinese Windows)
+        # cannot encode emoji used in alert subjects. Degrade gracefully so
+        # local development never crashes on email delivery.
+        def _safe(text: str) -> str:
+            enc = sys.stdout.encoding or "utf-8"
+            return text.encode(enc, errors="replace").decode(enc, errors="replace")
+
         print("=" * 60)
-        print(f"TO: {to_email}")
-        print(f"SUBJECT: {subject}")
+        print(_safe(f"TO: {to_email}"))
+        print(_safe(f"SUBJECT: {subject}"))
         print("-" * 60)
-        print(body)
+        print(_safe(body))
         print("=" * 60)
         return True
 

@@ -1,6 +1,7 @@
 """Detect stock and price changes from newly scraped snapshots."""
 
 import json
+import logging
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -12,6 +13,8 @@ from app.models import Listing, PriceHistory, Product, Retailer
 from app.services.affiliate import tag_url
 from app.services.alerter import notify_subscribers_for_listing
 from app.spiders.base import ListingSnapshot
+
+logger = logging.getLogger(__name__)
 
 
 async def upsert_listings(

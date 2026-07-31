@@ -38,6 +38,29 @@ class MediaMarktDeSpider(PlaywrightSpider):
     ) -> list[ListingSnapshot]:
         await page.wait_for_timeout(3000)
         html = await page.content()
+
+        # MediaMarkt increasingly serves a bot-detection interstitial ("Nur
+        # einen Moment..." / "Just a moment...") instead of the real catalog.
+        # Detect it early and raise an actionable error so operators know a
+        # residential proxy / anti-bot service is required, rather than seeing
+        # a confusing "state not found" traceback.
+        try:
+            page_title = (await page.title()).lower()
+        except Exception:
+            page_title = ""
+        html_lower = html.lower()
+        challenged = (
+            "einen moment" in page_title
+            or "just a moment" in page_title
+            or "datadome" in html_lower
+            or ("captcha" in html_lower and "__PRELOADED_STATE__" not in html)
+        )
+        if challenged:
+            raise RuntimeError(
+                "MediaMarkt served a bot-challenge page; a residential proxy or "
+                "anti-bot service is required to scrape this retailer."
+            )
+
         state = self._extract_preloaded_state(html)
 
         product_keys = [k for k in state.keys() if k.startswith("GraphqlProduct:")]

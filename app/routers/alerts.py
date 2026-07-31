@@ -176,6 +176,7 @@ async def confirm(
             "success": True,
             "message": "You're subscribed! We'll email you when matching ACs are in stock.",
             "token": token,
+            "settings": settings,
         },
     )
 
@@ -203,6 +204,7 @@ async def unsubscribe(
             "title": "Unsubscribed",
             "success": True,
             "message": "You have been unsubscribed and will no longer receive alerts.",
+            "settings": settings,
         },
     )
 
