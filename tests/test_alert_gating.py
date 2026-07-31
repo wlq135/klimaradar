@@ -160,3 +160,15 @@ async def test_different_emails_have_separate_limits(client):
     response_b = await _create_alert(client, email="b@example.com", city="Berlin")
     assert response_a.status_code == 200
     assert response_b.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_email_normalized_lowercase(client, db_session):
+    """Mixed-case emails must be normalized so the free limit counts them as one."""
+    r1 = await _create_alert(client, email="Test@Example.COM", city="Berlin")
+    assert r1.status_code == 200
+    await _verify_alert(db_session, "test@example.com")
+
+    r2 = await _create_alert(client, email="TEST@example.com", city="Munich")
+    assert r2.status_code == 402
+    assert "upgrade" in r2.json()["detail"]["message"].lower()

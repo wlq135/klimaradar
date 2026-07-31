@@ -82,6 +82,17 @@ class PriceHistoryOut(BaseModel):
 class AlertSubscriptionCreate(BaseModel):
     email: EmailStr
     country: str = Field(..., min_length=2, max_length=2)
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _lowercase_email(cls, value):
+        """Normalize emails to lowercase at the schema boundary.
+
+        This keeps duplicate-detection, free-tier limits and paid-access
+        lookups consistent regardless of how the client capitalizes the
+        address, matching the lowercasing done by the Creem integration.
+        """
+        return value.lower() if isinstance(value, str) else value
     city: str | None = None
     product_type: str | None = "portable"
     min_btu: int | None = None
