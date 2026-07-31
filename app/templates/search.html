@@ -42,11 +42,12 @@
         <div class="flex-grow">
           <div class="flex items-center gap-2 mb-1">
             <span class="text-xs font-semibold px-2 py-0.5 rounded-full
-              {% if item.stock_status == 'in_stock' %}bg-green-100 text-green-700
+              {% if item.stale %}bg-slate-100 text-slate-500
+              {% elif item.stock_status == 'in_stock' %}bg-green-100 text-green-700
               {% elif item.stock_status == 'out_of_stock' %}bg-red-100 text-red-700
               {% elif item.stock_status == 'back_order' %}bg-yellow-100 text-yellow-700
               {% else %}bg-slate-100 text-slate-700{% endif %}">
-              {{ item.stock_status|stock_label }}
+              {% if item.stale %}{{ item.stock_status|stock_label }} (unconfirmed){% else %}{{ item.stock_status|stock_label }}{% endif %}
             </span>
             {% if item.delivery_days %}
             <span class="text-xs text-slate-500">Delivery in {{ item.delivery_days }} day{{ 's' if item.delivery_days != 1 else '' }}</span>
