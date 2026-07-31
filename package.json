@@ -1,0 +1,11 @@
+{
+  "name": "klimaradar-css-build",
+  "private": true,
+  "description": "Tailwind CSS build for KlimaRadar (not shipped to production)",
+  "scripts": {
+    "build:css": "tailwindcss -i ./app/static/css/tailwind-input.css -o ./app/static/css/tailwind.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0"
+  }
+}

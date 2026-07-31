@@ -5,8 +5,14 @@ __pycache__/
 .env
 klimaradar.db
 *.db
+*.db-shm
+*.db-wal
 .pytest_cache/
 .mypy_cache/
 .idea/
 .vscode/
 *.log
+
+# Node (CSS build tooling only; not needed in production)
+node_modules/
+package-lock.json
