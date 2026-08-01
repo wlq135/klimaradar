@@ -452,6 +452,16 @@ async def affiliate_redirect(
 
 @router.get("/api/health")
 async def health(session: AsyncSession = Depends(get_db)):
+    email_backend_name = "unknown"
+    email_error = None
+    try:
+        from app.services.alerter import get_email_backend, _last_brevo_error
+        email_backend_name = get_email_backend().__class__.__name__
+        if _last_brevo_error:
+            email_error = _last_brevo_error
+    except Exception:
+        pass
+
     try:
         listing_count = await session.scalar(select(func.count(Listing.id)))
         retailer_count = await session.scalar(select(func.count(Retailer.id)))
@@ -459,6 +469,8 @@ async def health(session: AsyncSession = Depends(get_db)):
             "status": "ok",
             "listings": listing_count,
             "retailers": retailer_count,
+            "email_backend": email_backend_name,
+            **({"email_error": email_error} if email_error else {}),
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Database error: {exc}")
