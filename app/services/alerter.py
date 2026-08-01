@@ -15,6 +15,10 @@ from app.models import AlertDigest, AlertLog, AlertSubscription, Listing
 
 logger = logging.getLogger(__name__)
 
+# Populated by BrevoApiEmailBackend when a send fails, so the
+# health/admin API can surface the actual Brevo error to operators.
+_last_brevo_error: str | None = None
+
 
 def _start_of_day(dt: datetime | None = None) -> datetime:
     dt = dt or datetime.now(timezone.utc)
@@ -193,9 +197,17 @@ class BrevoApiEmailBackend(EmailBackend):
                 )
             if response.is_success:
                 return True
+            error_detail = ""
+            try:
+                error_detail = response.json().get("message", response.text[:300])
+            except Exception:
+                error_detail = response.text[:300]
             logger.error(
-                "Brevo API returned %s: %s", response.status_code, response.text
+                "Brevo API returned %s: %s", response.status_code, error_detail
             )
+            # Store last error so API endpoints can surface it to the operator
+            global _last_brevo_error
+            _last_brevo_error = f"BREVO {response.status_code}: {error_detail}"
             return False
         except Exception as exc:  # pragma: no cover
             logger.exception("Failed to send email via Brevo API: %s", exc)
