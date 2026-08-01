@@ -1,4 +1,4 @@
-"""Public HTML pages and affiliate redirect."""
+﻿"""Public HTML pages and affiliate redirect."""
 
 import hashlib
 import json
@@ -455,9 +455,11 @@ async def health(session: AsyncSession = Depends(get_db)):
     email_backend_name = "unknown"
     email_error = None
     try:
-        from app.services.alerter import get_email_backend, _last_brevo_error
+        from app.services.alerter import get_email_backend, _last_brevo_error, _last_email_error
         email_backend_name = get_email_backend().__class__.__name__
-        if _last_brevo_error:
+        if _last_email_error:
+            email_error = _last_email_error
+        elif _last_brevo_error:
             email_error = _last_brevo_error
     except Exception:
         pass
@@ -470,7 +472,7 @@ async def health(session: AsyncSession = Depends(get_db)):
             "listings": listing_count,
             "retailers": retailer_count,
             "email_backend": email_backend_name,
-            **({"email_error": email_error} if email_error else {}),
+            "email_error": email_error,
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Database error: {exc}")
