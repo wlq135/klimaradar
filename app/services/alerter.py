@@ -1,4 +1,4 @@
-"""Email alert generation and delivery."""
+﻿"""Email alert generation and delivery."""
 
 import asyncio
 import logging
@@ -15,9 +15,10 @@ from app.models import AlertDigest, AlertLog, AlertSubscription, Listing
 
 logger = logging.getLogger(__name__)
 
-# Populated by BrevoApiEmailBackend when a send fails, so the
-# health/admin API can surface the actual Brevo error to operators.
+# Populated by email backends when a send fails, so the
+# health/admin API can surface the actual error to operators.
 _last_brevo_error: str | None = None
+_last_email_error: str | None = None
 
 
 def _start_of_day(dt: datetime | None = None) -> datetime:
@@ -157,6 +158,8 @@ class SmtpEmailBackend(EmailBackend):
             return True
         except Exception as exc:  # pragma: no cover
             logger.exception("Failed to send email via SMTP: %s", exc)
+            global _last_email_error
+            _last_email_error = f"SMTP: {type(exc).__name__}: {exc}"
             return False
 
 
@@ -206,11 +209,14 @@ class BrevoApiEmailBackend(EmailBackend):
                 "Brevo API returned %s: %s", response.status_code, error_detail
             )
             # Store last error so API endpoints can surface it to the operator
-            global _last_brevo_error
+            global _last_brevo_error, _last_email_error
             _last_brevo_error = f"BREVO {response.status_code}: {error_detail}"
+            _last_email_error = _last_brevo_error
             return False
         except Exception as exc:  # pragma: no cover
             logger.exception("Failed to send email via Brevo API: %s", exc)
+            _last_email_error = f"BREVO EXCEPTION: {type(exc).__name__}: {exc}"
+            _last_email_error = f"BREVO EXCEPTION: {type(exc).__name__}: {exc}"
             return False
 
 
