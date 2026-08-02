@@ -434,7 +434,7 @@ async def affiliate_redirect(
     session.add(click)
     await session.commit()
 
-    target = listing.affiliate_url or tag_url(listing.retailer.domain, listing.url)
+    target = tag_url(listing.retailer.domain, listing.affiliate_url or listing.url)
     if not target or not _is_safe_redirect_target(target, listing.retailer):
         target = tag_url(listing.retailer.domain, listing.url)
     if not target or not _is_safe_redirect_target(target, listing.retailer):
