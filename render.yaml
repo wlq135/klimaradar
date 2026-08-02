@@ -30,17 +30,17 @@ services:
       - key: ENABLE_DEMO
         value: "false"
       - key: AMAZON_DE_AFFILIATE_TAG
-        sync: false
+        value: "klrmrd-21"
       - key: AMAZON_FR_AFFILIATE_TAG
-        sync: false
+        value: "klrmrd-21"
       - key: AMAZON_IT_AFFILIATE_TAG
-        sync: false
+        value: "klrmrd-21"
       - key: AMAZON_ES_AFFILIATE_TAG
-        sync: false
+        value: "klrmrd-21"
       - key: AMAZON_NL_AFFILIATE_TAG
-        sync: false
+        value: "klrmrd-21"
       - key: AMAZON_BE_AFFILIATE_TAG
-        sync: false
+        value: "klrmrd-21"
       - key: MEDIAMARKT_DE_AFFILIATE_TAG
         sync: false
       - key: BOULANGER_FR_AFFILIATE_TAG
