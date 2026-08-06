@@ -311,8 +311,25 @@ async def search(
 
     country_upper = country.upper()
     base = settings.base_url.rstrip("/")
-    query_suffix = f"?{request.url.query}" if request.url.query else ""
-    canonical_url = f"{base}{request.url.path}{query_suffix}"
+
+    # Filtered search pages (any param beyond a bare country) must not be
+    # indexed: they create thousands of near-duplicate URLs that waste crawl
+    # budget. Canonical points to the clean country-level page instead.
+    has_filter_params = bool(
+        q
+        or city
+        or _int_or_none(min_btu_raw)
+        or _float_or_none(max_price_raw)
+        or _bool_from_param(in_stock_only_raw)
+        or product_type != "portable"
+    )
+    if has_filter_params:
+        canonical_url = f"{base}/search?country={country}"
+        noindex = True
+    else:
+        query_suffix = f"?{request.url.query}" if request.url.query else ""
+        canonical_url = f"{base}{request.url.path}{query_suffix}"
+        noindex = False
     html_lang = COUNTRY_LANGUAGES.get(country_upper, "en")
     hreflang_alternates = build_hreflang_alternates(html_lang, canonical_url, base)
 
@@ -351,6 +368,7 @@ async def search(
             listings=listings,
             filters=filters.model_dump(),
             total=len(listings),
+            noindex=noindex,
         ),
     )
 

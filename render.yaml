@@ -48,9 +48,9 @@ services:
       - key: DARTY_FR_AFFILIATE_TAG
         sync: false
       - key: PLAUSIBLE_DOMAIN
-        sync: false
+        value: "klima-radar.com"
       - key: PLAUSIBLE_SCRIPT_URL
-        sync: false
+        value: "https://plausible.io/js/script.js"
       - key: GOOGLE_SITE_VERIFICATION
         sync: false
       - key: PLAYWRIGHT_PROXY_SERVER

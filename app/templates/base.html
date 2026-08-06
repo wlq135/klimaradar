@@ -7,6 +7,10 @@
   <meta name="description" content="{{ description|default('Find portable air conditioners in stock across Europe. KlimaRadar tracks up-to-the-minute AC availability, prices and delivery times in Germany, France and beyond.') }}">
   <link rel="canonical" href="{{ canonical_url|default(request.url.scheme + '://' + request.url.netloc + request.url.path) }}">
 
+  {% if noindex %}
+  <meta name="robots" content="noindex, follow">
+  {% endif %}
+
   {% if hreflang_alternates %}
   {% for hreflang, href in hreflang_alternates %}
   <link rel="alternate" hreflang="{{ hreflang }}" href="{{ href }}">
