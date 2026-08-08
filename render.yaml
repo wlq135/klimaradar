@@ -34,9 +34,9 @@ services:
       - key: AMAZON_FR_AFFILIATE_TAG
         value: "klrmrd-21"
       - key: AMAZON_IT_AFFILIATE_TAG
-        value: "klrmrd-21"
+        value: "klrmrd02-21"
       - key: AMAZON_ES_AFFILIATE_TAG
-        value: "klrmrd-21"
+        value: "klrmrd03-21"
       - key: AMAZON_NL_AFFILIATE_TAG
         value: "klrmrd-21"
       - key: AMAZON_BE_AFFILIATE_TAG
