@@ -293,8 +293,10 @@ async def search(
     max_price_raw: str | None = Query(None, alias="max_price"),
     in_stock_only_raw: str | None = Query(None, alias="in_stock_only"),
     q_raw: str | None = Query(None, alias="q"),
+    page_raw: str | None = Query(None, alias="page"),
     session: AsyncSession = Depends(get_db),
 ):
+    _PAGE_SIZE = 24
     city = _empty_to_none(city_raw)
     product_type = _empty_to_none(product_type_raw) or "portable"
     q = _empty_to_none(q_raw)
@@ -307,7 +309,12 @@ async def search(
         in_stock_only=_bool_from_param(in_stock_only_raw),
         q=q,
     )
-    listings = await _fetch_filtered_listings(session, filters)
+    page = max(1, int(page_raw) if page_raw and page_raw.isdigit() else 1)
+    offset = (page - 1) * _PAGE_SIZE
+    listings, total = await _fetch_filtered_listings(
+        session, filters, limit=_PAGE_SIZE, offset=offset
+    )
+    total_pages = (total + _PAGE_SIZE - 1) // _PAGE_SIZE if total else 0
 
     country_upper = country.upper()
     base = settings.base_url.rstrip("/")
@@ -367,8 +374,12 @@ async def search(
             canonical_url=canonical_url,
             listings=listings,
             filters=filters.model_dump(),
-            total=len(listings),
+            total=total,
             noindex=noindex,
+            current_page=page,
+            total_pages=total_pages,
+            has_prev=page > 1,
+            has_next=page < total_pages,
         ),
     )
 
@@ -394,7 +405,7 @@ async def city_seo_page(
         city=city_info["display_name"],
         product_type="portable",
     )
-    listings = await _fetch_filtered_listings(session, filters)
+    listings, _ = await _fetch_filtered_listings(session, filters)
     seo_copy = get_seo_copy(country_code, city_info)
 
     base = settings.base_url.rstrip("/")
@@ -572,8 +583,12 @@ async def _get_stats(session: AsyncSession) -> StatsOut:
 
 
 async def _fetch_filtered_listings(
-    session: AsyncSession, filters: SearchFilters
-) -> list[dict]:
+    session: AsyncSession,
+    filters: SearchFilters,
+    *,
+    limit: int | None = None,
+    offset: int = 0,
+) -> tuple[list[dict], int]:
     stmt = (
         select(Listing, Product, Retailer)
         .join(Product, Listing.product_id == Product.id)
@@ -604,6 +619,13 @@ async def _fetch_filtered_listings(
         like = f"%{filters.q}%"
         stmt = stmt.where(Product.name.ilike(like))
 
+    # Count total matching rows (before pagination).
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    total_count = (await session.execute(count_stmt)).scalar() or 0
+
+    if limit is not None:
+        stmt = stmt.limit(limit).offset(offset)
+
     result = await session.execute(stmt)
     rows = []
     for listing, product, retailer in result.unique().all():
@@ -626,4 +648,4 @@ async def _fetch_filtered_listings(
                 "stale": _freshness(listing.last_seen_at)[1],
             }
         )
-    return rows
+    return rows, total_count

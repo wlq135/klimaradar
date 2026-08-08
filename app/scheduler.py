@@ -2,6 +2,11 @@
 
 import asyncio
 import logging
+import os
+import shutil
+import glob
+import re
+from urllib.parse import urlparse
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -64,6 +69,46 @@ async def _scheduled_cleanup():
         logger.exception("Scheduled cleanup failed: %s", exc)
 
 
+def _get_db_path() -> str:
+    """Extract the filesystem path of the SQLite database from the URL."""
+    url = settings.database_url
+    # sqlite+aiosqlite:///path/to/db or sqlite+aiosqlite:////absolute/path
+    match = re.sub(r"^sqlite\+aiosqlite://", "", url)
+    return match
+
+
+async def _scheduled_backup():
+    """Create a timestamped copy of the SQLite database.
+
+    Keeps the 7 most recent backups; older ones are deleted automatically.
+    Runs every 6 hours so at most a few hours of data is lost on failure.
+    """
+    try:
+        db_path = _get_db_path()
+        if not os.path.exists(db_path):
+            logger.warning("Backup skipped: DB file %s not found", db_path)
+            return
+
+        backup_dir = os.path.join(os.path.dirname(db_path), "backups")
+        os.makedirs(backup_dir, exist_ok=True)
+
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        backup_path = os.path.join(backup_dir, f"klimaradar_{timestamp}.db")
+        shutil.copy2(db_path, backup_path)
+        logger.info("Database backed up to %s", backup_path)
+
+        # Keep only the 7 most recent backups
+        backups = sorted(
+            glob.glob(os.path.join(backup_dir, "klimaradar_*.db")),
+            key=os.path.getmtime,
+        )
+        for old in backups[:-7]:
+            os.remove(old)
+            logger.info("Removed old backup %s", old)
+    except Exception as exc:
+        logger.exception("Scheduled backup failed: %s", exc)
+
+
 def create_scheduler() -> AsyncIOScheduler:
     """Create and configure the APScheduler instance."""
     scheduler = AsyncIOScheduler()
@@ -89,6 +134,13 @@ def create_scheduler() -> AsyncIOScheduler:
         hour=3,
         minute=30,
         id="data_cleanup",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _scheduled_backup,
+        "interval",
+        hours=6,
+        id="db_backup",
         replace_existing=True,
     )
     return scheduler

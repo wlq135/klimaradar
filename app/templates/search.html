@@ -66,6 +66,26 @@
       </div>
       {% endfor %}
     </div>
+
+    {% if total_pages and total_pages > 1 %}
+    <nav class="flex items-center justify-center gap-2 mt-8" aria-label="Pagination">
+      {% if has_prev %}
+      <a href="?country={{ filters.country }}{% if filters.city %}&city={{ filters.city }}{% endif %}{% if filters.min_btu %}&min_btu={{ filters.min_btu }}{% endif %}{% if filters.max_price %}&max_price={{ filters.max_price }}{% endif %}{% if filters.q %}&q={{ filters.q }}{% endif %}{% if filters.in_stock_only %}&in_stock_only=true{% endif %}&page={{ current_page - 1 }}"
+         class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm font-medium">← Previous</a>
+      {% else %}
+      <span class="px-4 py-2 rounded-lg border border-slate-200 text-slate-300 text-sm font-medium cursor-not-allowed">← Previous</span>
+      {% endif %}
+
+      <span class="text-sm text-slate-600 px-2">Page {{ current_page }} of {{ total_pages }}</span>
+
+      {% if has_next %}
+      <a href="?country={{ filters.country }}{% if filters.city %}&city={{ filters.city }}{% endif %}{% if filters.min_btu %}&min_btu={{ filters.min_btu }}{% endif %}{% if filters.max_price %}&max_price={{ filters.max_price }}{% endif %}{% if filters.q %}&q={{ filters.q }}{% endif %}{% if filters.in_stock_only %}&in_stock_only=true{% endif %}&page={{ current_page + 1 }}"
+         class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm font-medium">Next →</a>
+      {% else %}
+      <span class="px-4 py-2 rounded-lg border border-slate-200 text-slate-300 text-sm font-medium cursor-not-allowed">Next →</span>
+      {% endif %}
+    </nav>
+    {% endif %}
     {% else %}
     <div class="bg-white rounded-xl shadow p-12 text-center">
       <p class="text-lg text-slate-600 mb-2">No matching units in stock right now.</p>
