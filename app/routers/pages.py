@@ -195,7 +195,7 @@ async def pricing(request: Request):
 async def robots_txt():
     base = settings.base_url.rstrip("/")
     return PlainTextResponse(
-        f"User-agent: *\nAllow: /\nSitemap: {base}/sitemap.xml",
+        f"User-agent: *\nDisallow: /api/\nDisallow: /go/\nAllow: /\nSitemap: {base}/sitemap.xml",
         media_type="text/plain",
     )
 
