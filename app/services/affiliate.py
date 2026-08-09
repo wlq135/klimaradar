@@ -8,6 +8,7 @@ from app.config import settings
 # Maps retailer domain (without www) to the query parameter name used for the
 # affiliate identifier on that site.
 _AFFILIATE_PARAMS = {
+    "amazon.co.uk": "tag",
     "amazon.de": "tag",
     "amazon.com": "tag",
     "amazon.fr": "tag",
@@ -24,6 +25,7 @@ _AFFILIATE_PARAMS = {
 
 
 _AMAZON_DOMAINS = {
+    "amazon.co.uk",
     "amazon.de",
     "amazon.com",
     "amazon.fr",
@@ -49,6 +51,7 @@ def _affiliate_tag_for(domain: str) -> str | None:
     if domain in _AMAZON_DOMAINS:
         # Map each Amazon TLD to its country-specific tag setting.
         mapping = {
+            "amazon.co.uk": settings.amazon_uk_affiliate_tag,
             "amazon.de": settings.amazon_de_affiliate_tag,
             "amazon.com": settings.amazon_de_affiliate_tag,
             "amazon.fr": settings.amazon_fr_affiliate_tag,

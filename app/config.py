@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     enable_demo: bool = False
 
     amazon_de_affiliate_tag: str = ""
+    amazon_uk_affiliate_tag: str = ""
     amazon_fr_affiliate_tag: str = ""
     amazon_it_affiliate_tag: str = ""
     amazon_es_affiliate_tag: str = ""
