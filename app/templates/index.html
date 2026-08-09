@@ -11,6 +11,40 @@
   details > summary::-webkit-details-marker { display: none; }
   details[open] .chevron { transform: rotate(180deg); }
 </style>
+
+<script>
+document.getElementById('homepage-alert-form')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const form = e.target;
+  const data = {
+    country: form.country.value,
+    email: form.email.value,
+    product_type: 'portable',
+    in_stock_only: true,
+    frequency: 'daily'
+  };
+  const msg = document.getElementById('homepage-alert-msg');
+  msg.textContent = 'Subscribing...';
+  try {
+    const res = await fetch('/api/alerts/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    if (res.ok) {
+      msg.innerHTML = '\u2705 Check your inbox to confirm your subscription.';
+      form.reset();
+    } else if (res.status === 402) {
+      msg.innerHTML = 'Free limit reached. <a href="/pricing" class="underline font-semibold">Upgrade \u2192</a>';
+    } else {
+      msg.textContent = json.detail || json.message || 'Something went wrong.';
+    }
+  } catch(err) {
+    msg.textContent = 'Network error. Please try again.';
+  }
+});
+</script>
 {% endblock %}
 
 {% block content %}
@@ -40,12 +74,24 @@
 
 <section class="py-12">
   <div class="max-w-6xl mx-auto px-4">
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12">
+    {% if stats.in_stock_listings > 0 %}
+    <div class="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 mb-6 flex items-center gap-3">
+      <span class="flex h-3 w-3 relative">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+      </span>
+      <p class="text-red-800 font-semibold">
+        <span class="text-2xl">{{ stats.in_stock_listings }}</span> portable AC{{ 's' if stats.in_stock_listings != 1 else '' }} in stock right now &mdash; they sell out within hours. <a href="#alert-signup" class="underline">Get alerted &rarr;</a>
+      </p>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
       <div class="bg-white rounded-lg shadow p-6 text-center">
         <div class="text-3xl font-bold text-blue-600">{{ stats.total_listings }}</div>
         <div class="text-slate-500 text-sm">Tracked listings</div>
       </div>
-      <div class="bg-white rounded-lg shadow p-6 text-center">
+      <div class="bg-white rounded-lg shadow p-6 text-center ring-2 ring-green-400">
         <div class="text-3xl font-bold text-green-600">{{ stats.in_stock_listings }}</div>
         <div class="text-slate-500 text-sm">In stock now</div>
       </div>
@@ -57,6 +103,26 @@
         <div class="text-3xl font-bold text-orange-600">{{ stats.countries|length }}</div>
         <div class="text-slate-500 text-sm">Countries</div>
       </div>
+    </div>
+
+    <div class="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl shadow-lg p-8 mb-12 text-center" id="alert-signup">
+      <h2 class="text-2xl font-bold mb-2">Get instant stock alerts</h2>
+      <p class="text-green-50 mb-6">We'll email you the moment a portable AC is back in stock in your area.</p>
+      <form id="homepage-alert-form" class="flex flex-col sm:flex-row gap-3 max-w-xl mx-auto">
+        <select name="country" required class="rounded-lg px-4 py-3 text-slate-800 outline-none focus:ring-2 focus:ring-green-300" aria-label="Country">
+          <option value="DE">Germany</option>
+          <option value="FR">France</option>
+          <option value="IT">Italy</option>
+          <option value="ES">Spain</option>
+          <option value="NL">Netherlands</option>
+          <option value="BE">Belgium</option>
+        </select>
+        <input type="email" name="email" required placeholder="your@email.com" class="rounded-lg px-4 py-3 text-slate-800 outline-none focus:ring-2 focus:ring-green-300 flex-grow" aria-label="Email address">
+        <button type="submit" class="bg-white text-green-700 font-bold rounded-lg px-6 py-3 hover:bg-green-50 transition whitespace-nowrap">
+          Get alerts
+        </button>
+      </form>
+      <p id="homepage-alert-msg" class="mt-3 text-sm text-green-50"></p>
     </div>
 
     <h2 class="text-2xl font-bold mb-6">Popular searches</h2>
