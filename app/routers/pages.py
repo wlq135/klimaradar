@@ -150,7 +150,7 @@ async def index(request: Request, session: AsyncSession = Depends(get_db)):
     country_order = ["DE", "FR", "IT", "ES", "NL", "BE"]
     popular_searches = []
     for code in country_order:
-        cities = [c for c in CITY_METADATA if c["country"] == code][:6]
+        cities = [c for c in CITY_METADATA if c["country"] == code]
         if not cities:
             continue
         popular_searches.append(
@@ -362,6 +362,8 @@ async def search(
             "Compare prices, stock status and delivery times on KlimaRadar."
         )
 
+    search_other_cities = list_cities_for_country(country_upper)
+    search_cities_title = "Other cities in " + COUNTRY_NAMES.get(country_upper, {}).get("en", country_upper)
     return templates.TemplateResponse(
         request,
         "search.html",
@@ -380,6 +382,8 @@ async def search(
             total_pages=total_pages,
             has_prev=page > 1,
             has_next=page < total_pages,
+            other_cities=search_other_cities,
+            popular_cities_title=search_cities_title,
         ),
     )
 
@@ -413,7 +417,7 @@ async def city_seo_page(
     html_lang = COUNTRY_LANGUAGES.get(country_code, "en")
     hreflang_alternates = build_hreflang_alternates(html_lang, canonical_url, base)
     breadcrumb_jsonld = build_breadcrumb_jsonld(base, country_code, city_info, seo_copy)
-    other_cities = list_cities_for_country(country_code, limit=10, exclude_slug=city_info["slug"])
+    other_cities = list_cities_for_country(country_code, limit=50, exclude_slug=city_info["slug"])
 
     return templates.TemplateResponse(
         request,
