@@ -360,7 +360,7 @@ async def search(
             "Compare prices, stock status and delivery times on KlimaRadar."
         )
 
-    search_other_cities = list_cities_for_country(country_upper)
+    search_other_cities = list_cities_for_country(country_upper, limit=50)
     search_cities_title = "Other cities in " + COUNTRY_NAMES.get(country_upper, {}).get("en", country_upper)
     return templates.TemplateResponse(
         request,
