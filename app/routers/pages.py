@@ -353,8 +353,6 @@ async def search(
             "Comparez les prix, la disponibilité et les délais de livraison sur KlimaRadar."
         )
     else:
-        from app.seo.cities import COUNTRY_NAMES
-
         country_name = COUNTRY_NAMES.get(country_upper, {}).get("en", country_upper)
         title = f"Portable AC in stock{f' in {city}' if city else ''}, {country_name} — KlimaRadar"
         description = (
