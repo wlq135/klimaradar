@@ -50,7 +50,7 @@ services:
       - key: DARTY_FR_AFFILIATE_TAG
         sync: false
       - key: PLAUSIBLE_DOMAIN
-        value: "klima-radar.com"
+        sync: false
       - key: PLAUSIBLE_SCRIPT_URL
         value: "https://plausible.io/js/script.js"
       - key: CF_WEB_ANALYTICS_TOKEN
