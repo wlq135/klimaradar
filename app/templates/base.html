@@ -23,7 +23,11 @@
   <meta name="google-site-verification" content="{{ settings.google_site_verification }}">
   {% endif %}
 
-  {% if settings.plausible_domain %}
+  {% if settings.cf_web_analytics_token %}
+  <!-- Cloudflare Web Analytics -- privacy-friendly, no cookies -->
+  <script defer src='https://static.cloudflareinsights.com/beacon.min.js'
+          data-cf-beacon='{"token": "{{ settings.cf_web_analytics_token }}"}'></script>
+  {% elif settings.plausible_domain %}
   <!-- Privacy-friendly analytics by Plausible -->
   <script async src="{{ settings.plausible_script_url }}"></script>
   <script>
@@ -96,7 +100,7 @@
 
   <div id="cookie-banner" class="fixed bottom-0 left-0 right-0 bg-slate-900 text-white text-sm p-4 hidden">
     <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
-      <p>We use essential cookies for the site to work. We also use Plausible Analytics, which is cookie-free and does not store personal data.</p>
+      <p>We use essential cookies for the site to work. We also use privacy-friendly, cookie-free web analytics (Cloudflare Web Analytics) which does not store personal data.</p>
       <div class="flex gap-2">
         <button id="decline-cookies" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-md font-medium">Decline</button>
         <button id="accept-cookies" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium">Accept</button>

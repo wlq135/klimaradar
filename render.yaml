@@ -53,6 +53,8 @@ services:
         value: "klima-radar.com"
       - key: PLAUSIBLE_SCRIPT_URL
         value: "https://plausible.io/js/script.js"
+      - key: CF_WEB_ANALYTICS_TOKEN
+        sync: false
       - key: GOOGLE_SITE_VERIFICATION
         sync: false
       - key: PLAYWRIGHT_PROXY_SERVER

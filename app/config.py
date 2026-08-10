@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     # standard script if left empty.
     plausible_script_url: str = "https://plausible.io/js/script.js"
 
+    # Cloudflare Web Analytics beacon token (free, privacy-friendly, no cookies).
+    # Find it in dash.cloudflare.com -> Analytics & Logs -> Web Analytics.
+    cf_web_analytics_token: str = ""
+
     # Google Search Console verification (optional). Paste the content of the
     # meta tag here to inject <meta name="google-site-verification" content="...">.
     google_site_verification: str = ""
