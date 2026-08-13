@@ -25,8 +25,10 @@ from app.seo import (
     COUNTRY_NAMES,
     COUNTRY_LANGUAGES,
     build_breadcrumb_jsonld,
+    build_faq_jsonld,
     build_hreflang_alternates,
     build_website_organization_jsonld,
+    get_faq_content,
     get_city_info,
     get_seo_copy,
     get_sitemap_cities,
@@ -209,6 +211,11 @@ async def sitemap_xml():
         (f"{base}/", "1.0"),
         (f"{base}/search?country=DE", "0.8"),
         (f"{base}/search?country=FR", "0.8"),
+        (f"{base}/search?country=IT", "0.8"),
+        (f"{base}/search?country=ES", "0.8"),
+        (f"{base}/search?country=NL", "0.8"),
+        (f"{base}/search?country=BE", "0.8"),
+        (f"{base}/search?country=GB", "0.8"),
         (f"{base}/pricing", "0.8"),
         (f"{base}/privacy", "0.5"),
         (f"{base}/terms", "0.5"),
@@ -415,6 +422,8 @@ async def city_seo_page(
     html_lang = COUNTRY_LANGUAGES.get(country_code, "en")
     hreflang_alternates = build_hreflang_alternates(html_lang, canonical_url, base)
     breadcrumb_jsonld = build_breadcrumb_jsonld(base, country_code, city_info, seo_copy)
+    faq_content = get_faq_content(country_code, city_info)
+    faq_jsonld = build_faq_jsonld(faq_content)
     other_cities = list_cities_for_country(country_code, limit=50, exclude_slug=city_info["slug"])
 
     return templates.TemplateResponse(
@@ -432,6 +441,8 @@ async def city_seo_page(
             popular_cities_title=seo_copy["popular_cities"],
             other_cities=other_cities,
             breadcrumb_jsonld=json.dumps(breadcrumb_jsonld, ensure_ascii=False),
+            faq_jsonld=json.dumps(faq_jsonld, ensure_ascii=False),
+            faq_content=faq_content,
             listings=listings,
             filters=filters.model_dump(),
             total=len(listings),
