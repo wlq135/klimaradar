@@ -9,6 +9,7 @@ COUNTRY_LANGUAGES = {
     "ES": "es-ES",
     "NL": "nl-NL",
     "BE": "nl-BE",
+    "GB": "en-GB",
 }
 
 COUNTRY_NAMES = {
@@ -18,6 +19,7 @@ COUNTRY_NAMES = {
     "ES": {"de": "Spanien", "fr": "Espagne", "en": "Spain", "es": "España"},
     "NL": {"de": "Niederlande", "fr": "Pays-Bas", "en": "Netherlands", "nl": "Nederland"},
     "BE": {"de": "Belgien", "fr": "Belgique", "en": "Belgium", "nl": "België"},
+    "GB": {"en": "United Kingdom", "de": "Vereinigtes Königreich", "fr": "Royaume-Uni"},
 }
 
 # fmt: off
@@ -173,6 +175,28 @@ CITY_METADATA: list[dict] = [
     {"country": "BE", "slug": "seraing", "display_name": "Seraing", "region": "Liège"},
     {"country": "BE", "slug": "roeselare", "display_name": "Roeselare", "region": "West Flanders"},
     {"country": "BE", "slug": "mouscron", "display_name": "Mouscron", "region": "Hainaut"},
+
+    # United Kingdom
+    {"country": "GB", "slug": "london", "display_name": "London", "region": "Greater London"},
+    {"country": "GB", "slug": "birmingham", "display_name": "Birmingham", "region": "West Midlands"},
+    {"country": "GB", "slug": "manchester", "display_name": "Manchester", "region": "Greater Manchester"},
+    {"country": "GB", "slug": "leeds", "display_name": "Leeds", "region": "West Yorkshire"},
+    {"country": "GB", "slug": "glasgow", "display_name": "Glasgow", "region": "Scotland"},
+    {"country": "GB", "slug": "liverpool", "display_name": "Liverpool", "region": "Merseyside"},
+    {"country": "GB", "slug": "newcastle", "display_name": "Newcastle upon Tyne", "region": "Tyne and Wear"},
+    {"country": "GB", "slug": "sheffield", "display_name": "Sheffield", "region": "South Yorkshire"},
+    {"country": "GB", "slug": "bristol", "display_name": "Bristol", "region": "South West"},
+    {"country": "GB", "slug": "nottingham", "display_name": "Nottingham", "region": "East Midlands"},
+    {"country": "GB", "slug": "leicester", "display_name": "Leicester", "region": "East Midlands"},
+    {"country": "GB", "slug": "coventry", "display_name": "Coventry", "region": "West Midlands"},
+    {"country": "GB", "slug": "cardiff", "display_name": "Cardiff", "region": "Wales"},
+    {"country": "GB", "slug": "belfast", "display_name": "Belfast", "region": "Northern Ireland"},
+    {"country": "GB", "slug": "edinburgh", "display_name": "Edinburgh", "region": "Scotland"},
+    {"country": "GB", "slug": "brighton", "display_name": "Brighton", "region": "East Sussex"},
+    {"country": "GB", "slug": "southampton", "display_name": "Southampton", "region": "Hampshire"},
+    {"country": "GB", "slug": "portsmouth", "display_name": "Portsmouth", "region": "Hampshire"},
+    {"country": "GB", "slug": "plymouth", "display_name": "Plymouth", "region": "Devon"},
+    {"country": "GB", "slug": "aberdeen", "display_name": "Aberdeen", "region": "Scotland"},
 ]
 # fmt: on
 
@@ -398,5 +422,78 @@ def build_website_organization_jsonld(base_url: str) -> dict:
                 "url": f"{base}/",
                 "logo": f"{base}/static/img/favicon.svg",
             },
+        ],
+    }
+
+
+# Localized FAQ Q&A for city landing pages.
+FAQ_CONTENT: dict[str, list[dict[str, str]]] = {
+    "de": [
+        {"q": "Wann sind wieder mobile Klimaanlagen auf Lager?", "a": "Die Verfügbarkeit ändert sich ständig. KlimaRadar überwacht die Lagerbestände der wichtigsten Händler in {country} in Echtzeit. Aktivieren Sie einen Alarm, um sofort benachrichtigt zu werden."},
+        {"q": "Wie viel Leistung (BTU) benötige ich für meinen Raum?", "a": "Als Faustregel: Für 25 m² etwa 7.000 BTU (2,0 kW), für 35 m² ca. 9.000 BTU und für 50 m² mindestens 12.000 BTU."},
+        {"q": "Was kostet eine mobile Klimaanlage?", "a": "Mobile Klimaanlagen kosten in {country} typischerweise zwischen 250 € und 700 €. Vergleichen Sie die aktuellen Preise auf dieser Seite."},
+        {"q": "Kann ich nach {city} liefern lassen?", "a": "Ja, alle hier gelisteten Händler liefern in ganz {country} inklusive {city}. Lieferzeit meist 1–5 Werktage."},
+    ],
+    "fr": [
+        {"q": "Quand les climatiseurs mobiles seront-ils de nouveau en stock ?", "a": "La disponibilité change constamment. KlimaRadar surveille les stocks des principaux revendeurs en {country} en temps réel. Activez une alerte pour être prévenu."},
+        {"q": "Quelle puissance (BTU) pour quelle surface ?", "a": "Comptez environ 7 000 BTU (2,0 kW) pour 25 m², 9 000 BTU pour 35 m² et au moins 12 000 BTU pour 50 m²."},
+        {"q": "Combien coûte un climatiseur mobile ?", "a": "Les climatiseurs mobiles coûtent généralement entre 250 € et 700 € en {country}. Comparez les prix actuels sur cette page."},
+        {"q": "Peut-on se faire livrer à {city} ?", "a": "Oui, tous les revendeurs listés livrent partout en {country} y compris à {city}. Délai généralement de 1 à 5 jours ouvrés."},
+    ],
+    "it": [
+        {"q": "Quando saranno di nuovo disponibili i condizionatori portatili?", "a": "La disponibilità cambia continuamente. KlimaRadar monitora le scorte in {country} in tempo reale. Attiva un avviso per essere notificato."},
+        {"q": "Quanti BTU servono per la mia stanza?", "a": "Circa 7.000 BTU (2,0 kW) per 25 m², 9.000 BTU per 35 m² e almeno 12.000 BTU per 50 m²."},
+        {"q": "Quanto costa un condizionatore portatile?", "a": "I condizionatori portatili costano in {country} tipicamente tra 250 € e 700 €. Confronta i prezzi attuali su questa pagina."},
+        {"q": "È possibile la consegna a {city}?", "a": "Sì, tutti i rivenditori consegnano in tutta la {country} inclusa {city}. Tempi di consegna 1–5 giorni lavorativi."},
+    ],
+    "es": [
+        {"q": "¿Cuándo habrá aires acondicionados portátiles en stock?", "a": "La disponibilidad cambia constantemente. KlimaRadar monitoriza las existencias en {country} en tiempo real. Activa una alerta para recibir una notificación."},
+        {"q": "¿Qué potencia (BTU) necesito para mi habitación?", "a": "Unos 7.000 BTU (2,0 kW) para 25 m², 9.000 BTU para 35 m² y al menos 12.000 BTU para 50 m²."},
+        {"q": "¿Cuánto cuesta un aire acondicionado portátil?", "a": "Los aires acondicionados portátiles cuestan en {country} típicamente entre 250 € y 700 €. Compara los precios actuales en esta página."},
+        {"q": "¿Se puede entregar en {city}?", "a": "Sí, todos los minoristas entregan en toda {country} incluida {city}. Plazo de entrega 1 a 5 días hábiles."},
+    ],
+    "nl": [
+        {"q": "Wanneer zijn draagbare airconditioners weer op voorraad?", "a": "De beschikbaarheid verandert voortdurend. KlimaRadar houdt de voorraden in {country} realtime bij. Activeer een melding om direct een seintje te krijgen."},
+        {"q": "Hoeveel BTU heb ik nodig voor mijn kamer?", "a": "Ongeveer 7.000 BTU (2,0 kW) voor 25 m², 9.000 BTU voor 35 m² en minstens 12.000 BTU voor 50 m²."},
+        {"q": "Wat kost een draagbare airconditioner?", "a": "Draagbare airconditioners kosten in {country} doorgaans tussen 250 € en 700 €. Vergelijk de actuele prijzen op deze pagina."},
+        {"q": "Kan er geleverd worden in {city}?", "a": "Ja, alle retailers leveren in heel {country} inclusief {city}. Levertijd meestal 1–5 werkdagen."},
+    ],
+    "en": [
+        {"q": "When will portable air conditioners be back in stock?", "a": "Availability changes constantly. KlimaRadar tracks stock levels at major retailers in {country} in real time. Set up an alert to get notified the moment a unit becomes available."},
+        {"q": "How many BTU do I need for my room?", "a": "As a rule of thumb: roughly 7,000 BTU (2.0 kW) for 25 m², 9,000 BTU for 35 m², and at least 12,000 BTU for 50 m²."},
+        {"q": "How much does a portable air conditioner cost?", "a": "Portable air conditioners typically cost between 200 and 600 in {country} currency, depending on power and brand. Compare current prices on this page."},
+        {"q": "Can I get delivery to {city}?", "a": "Yes, all retailers listed here deliver across {country} including {city}. Delivery time is usually 1–5 working days."},
+    ],
+}
+
+
+def get_faq_content(country: str, city_info: dict) -> list[dict[str, str]]:
+    """Return localized FAQ Q&A pairs for a city landing page."""
+    lang = _lang(country)
+    faqs = FAQ_CONTENT.get(lang, FAQ_CONTENT["en"])
+    country_name = COUNTRY_NAMES.get(country.upper(), {}).get(lang, country.upper())
+    city = city_info["display_name"]
+    return [
+        {"question": f["q"].format(city=city, country=country_name),
+         "answer": f["a"].format(city=city, country=country_name)}
+        for f in faqs
+    ]
+
+
+def build_faq_jsonld(faq_content: list[dict[str, str]]) -> dict:
+    """Build a FAQPage JSON-LD object from FAQ content."""
+    return {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {
+                "@type": "Question",
+                "name": item["question"],
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": item["answer"],
+                },
+            }
+            for item in faq_content
         ],
     }

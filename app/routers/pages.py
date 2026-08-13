@@ -147,7 +147,7 @@ async def index(request: Request, session: AsyncSession = Depends(get_db)):
     hreflang_alternates = build_hreflang_alternates(html_lang, canonical_url, base)
     structured_data = build_website_organization_jsonld(base)
 
-    country_order = ["DE", "FR", "IT", "ES", "NL", "BE"]
+    country_order = ["DE", "FR", "IT", "ES", "NL", "BE", "GB"]
     popular_searches = []
     for code in country_order:
         cities = [c for c in CITY_METADATA if c["country"] == code]

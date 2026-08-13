@@ -12,6 +12,9 @@ from app.seo.cities import (
     get_seo_copy,
     get_sitemap_cities,
     list_cities_for_country,
+    FAQ_CONTENT,
+    get_faq_content,
+    build_faq_jsonld,
 )
 
 __all__ = [
@@ -26,4 +29,7 @@ __all__ = [
     "get_seo_copy",
     "get_sitemap_cities",
     "list_cities_for_country",
+    "FAQ_CONTENT",
+    "get_faq_content",
+    "build_faq_jsonld",
 ]
