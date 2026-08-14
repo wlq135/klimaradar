@@ -52,28 +52,215 @@ _DEFAULT_DESCRIPTION = (
 router = APIRouter()
 
 
-def _freshness(seen_at) -> tuple[str, bool]:
-    """Return a (label, is_stale) pair relative to now for display on cards.
 
-    Stock data is most credible when fresh. Listings last seen more than
-    48h ago are flagged as stale so the UI can de-emphasise them.
-    """
+_LISTING_UI_COPY = {
+    "de": {
+        "result_found": "Ergebnisse gefunden",
+        "create_alert": "+ Benachrichtigung erstellen",
+        "create_alert_long": "Benachrichtigung erstellen",
+        "trust_intro": "Wir vergleichen Preise bei Amazon, MediaMarkt, Boulanger, Darty und mehr.",
+        "affiliate_note": "Affiliate-Links können uns eine Provision einbringen.",
+        "stock_labels": {
+            "in_stock": "Auf Lager",
+            "low_stock": "Geringer Bestand",
+            "out_of_stock": "Nicht auf Lager",
+            "back_order": "Vorbestellung",
+            "pre_order": "Vorbestellung",
+            "unknown": "Unbekannt",
+        },
+        "unconfirmed": "unbestätigt",
+        "delivery": "Lieferung in",
+        "delivery_days": "Tagen",
+        "delivery_day": "Tag",
+        "unknown_brand": "Unbekannte Marke",
+        "high_demand": "⚡ Gefragt — Bestand ändert sich stündlich",
+        "buy_prefix": "Kaufen bei",
+        "no_matches_title": "Zurzeit keine passenden Geräte auf Lager.",
+        "no_matches_body": "Erstelle eine Benachrichtigung und wir informieren dich, sobald ein Gerät verfügbar ist.",
+        "previous": "Zurück",
+        "next": "Weiter",
+        "page": "Seite",
+        "of": "von",
+    },
+    "fr": {
+        "result_found": "résultats trouvés",
+        "create_alert": "+ Créer une alerte",
+        "create_alert_long": "Créer une alerte",
+        "trust_intro": "Nous comparons les prix d'Amazon, MediaMarkt, Boulanger, Darty et d'autres.",
+        "affiliate_note": "Les liens affiliés peuvent nous rapporter une commission.",
+        "stock_labels": {
+            "in_stock": "En stock",
+            "low_stock": "Stock limité",
+            "out_of_stock": "Rupture de stock",
+            "back_order": "Précommande",
+            "pre_order": "Précommande",
+            "unknown": "Inconnu",
+        },
+        "unconfirmed": "non confirmé",
+        "delivery": "Livraison en",
+        "delivery_days": "jours",
+        "delivery_day": "jour",
+        "unknown_brand": "Marque inconnue",
+        "high_demand": "⚡ Forte demande — le stock change toutes les heures",
+        "buy_prefix": "Acheter chez",
+        "no_matches_title": "Aucun appareil correspondant en stock pour le moment.",
+        "no_matches_body": "Créez une alerte et nous vous informerons dès qu'un appareil sera disponible.",
+        "previous": "Précédent",
+        "next": "Suivant",
+        "page": "Page",
+        "of": "sur",
+    },
+    "it": {
+        "result_found": "risultati trovati",
+        "create_alert": "+ Crea un avviso",
+        "create_alert_long": "Crea un avviso",
+        "trust_intro": "Confrontiamo i prezzi di Amazon, MediaMarkt, Boulanger, Darty e altri.",
+        "affiliate_note": "I link affiliati possono farci guadagnare una commissione.",
+        "stock_labels": {
+            "in_stock": "Disponibile",
+            "low_stock": "Scorte limitate",
+            "out_of_stock": "Non disponibile",
+            "back_order": "Ordine differito",
+            "pre_order": "Preordine",
+            "unknown": "Sconosciuto",
+        },
+        "unconfirmed": "non confermato",
+        "delivery": "Consegna in",
+        "delivery_days": "giorni",
+        "delivery_day": "giorno",
+        "unknown_brand": "Marca sconosciuta",
+        "high_demand": "⚡ Alta richiesta — la disponibilità cambia ogni ora",
+        "buy_prefix": "Acquista su",
+        "no_matches_title": "Nessun dispositivo corrispondente disponibile al momento.",
+        "no_matches_body": "Crea un avviso e ti informeremo non appena un dispositivo sarà disponibile.",
+        "previous": "Precedente",
+        "next": "Successiva",
+        "page": "Pagina",
+        "of": "di",
+    },
+    "es": {
+        "result_found": "resultados encontrados",
+        "create_alert": "+ Crear alerta",
+        "create_alert_long": "Crear alerta",
+        "trust_intro": "Comparamos precios de Amazon, MediaMarkt, Boulanger, Darty y más.",
+        "affiliate_note": "Los enlaces de afiliados pueden generarnos una comisión.",
+        "stock_labels": {
+            "in_stock": "En stock",
+            "low_stock": "Poco stock",
+            "out_of_stock": "Agotado",
+            "back_order": "Pedido anticipado",
+            "pre_order": "Reserva",
+            "unknown": "Desconocido",
+        },
+        "unconfirmed": "sin confirmar",
+        "delivery": "Entrega en",
+        "delivery_days": "días",
+        "delivery_day": "día",
+        "unknown_brand": "Marca desconocida",
+        "high_demand": "⚡ Alta demanda — el stock cambia cada hora",
+        "buy_prefix": "Comprar en",
+        "no_matches_title": "No hay dispositivos coincidentes en stock ahora mismo.",
+        "no_matches_body": "Crea una alerta y te avisaremos en cuanto haya uno disponible.",
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "page": "Página",
+        "of": "de",
+    },
+    "nl": {
+        "result_found": "resultaten gevonden",
+        "create_alert": "+ Alert aanmaken",
+        "create_alert_long": "Alert aanmaken",
+        "trust_intro": "We vergelijken prijzen van Amazon, MediaMarkt, Boulanger, Darty en meer.",
+        "affiliate_note": "Affiliatelinks kunnen ons een commissie opleveren.",
+        "stock_labels": {
+            "in_stock": "Op voorraad",
+            "low_stock": "Beperkte voorraad",
+            "out_of_stock": "Uitverkocht",
+            "back_order": "Voorbestelling",
+            "pre_order": "Voorbestelling",
+            "unknown": "Onbekend",
+        },
+        "unconfirmed": "onbevestigd",
+        "delivery": "Levering in",
+        "delivery_days": "dagen",
+        "delivery_day": "dag",
+        "unknown_brand": "Onbekend merk",
+        "high_demand": "⚡ Veel gevraagd — voorraad verandert per uur",
+        "buy_prefix": "Koop bij",
+        "no_matches_title": "Momenteel geen passende apparaten op voorraad.",
+        "no_matches_body": "Maak een alert aan en we mailen zodra er één beschikbaar is.",
+        "previous": "Vorige",
+        "next": "Volgende",
+        "page": "Pagina",
+        "of": "van",
+    },
+    "en": {
+        "result_found": "results found",
+        "create_alert": "+ Create alert",
+        "create_alert_long": "Create an alert",
+        "trust_intro": "We compare prices across Amazon, MediaMarkt, Boulanger, Darty and more.",
+        "affiliate_note": "Affiliate links may earn us a commission.",
+        "stock_labels": {
+            "in_stock": "In Stock",
+            "low_stock": "Low Stock",
+            "out_of_stock": "Out of Stock",
+            "back_order": "Back Order",
+            "pre_order": "Pre-Order",
+            "unknown": "Unknown",
+        },
+        "unconfirmed": "unconfirmed",
+        "delivery": "Delivery in",
+        "delivery_days": "days",
+        "delivery_day": "day",
+        "unknown_brand": "Unknown brand",
+        "high_demand": "⚡ In high demand — stock changes hourly",
+        "buy_prefix": "Buy at",
+        "no_matches_title": "No matching units in stock right now.",
+        "no_matches_body": "Create an alert and we'll email you as soon as one becomes available.",
+        "previous": "Previous",
+        "next": "Next",
+        "page": "Page",
+        "of": "of",
+    },
+}
+
+
+def _listing_ui(country: str) -> dict:
+    language = COUNTRY_LANGUAGES.get(country.upper(), "en")[:2]
+    return _LISTING_UI_COPY.get(language, _LISTING_UI_COPY["en"])
+
+
+
+_FRESHNESS_COPY = {
+    "de": ("Verfügbarkeit unbekannt", "Gerade überprüft", "Vor {hours} Std. überprüft", "Vor 1 Tag überprüft", "Vor {days} Tagen überprüft", "Zuletzt geprüft vor {days} Tagen"),
+    "fr": ("Disponibilité inconnue", "Vérifié à l'instant", "Vérifié il y a {hours} h", "Vérifié il y a 1 jour", "Vérifié il y a {days} jours", "Dernière vérification il y a {days} jours"),
+    "it": ("Disponibilità sconosciuta", "Verificato ora", "Verificato {hours} ore fa", "Verificato 1 giorno fa", "Verificato {days} giorni fa", "Ultimo controllo {days} giorni fa"),
+    "es": ("Disponibilidad desconocida", "Verificado ahora mismo", "Verificado hace {hours} h", "Verificado hace 1 día", "Verificado hace {days} días", "Última comprobación hace {days} días"),
+    "nl": ("Beschikbaarheid onbekend", "Zojuist gecontroleerd", "{hours} uur geleden gecontroleerd", "1 dag geleden gecontroleerd", "{days} dagen geleden gecontroleerd", "Laatst gecontroleerd {days} dagen geleden"),
+    "en": ("Availability unknown", "Verified just now", "Verified {hours}h ago", "Verified 1d ago", "Verified {days}d ago", "Checked {days}d ago"),
+}
+
+
+def _freshness(seen_at, country: str = "EN") -> tuple[str, bool]:
+    """Return a localized (label, is_stale) pair relative to now."""
+    lang = COUNTRY_LANGUAGES.get(country.upper(), "en")[:2]
+    unknown, now, hours, one_day, days, stale = _FRESHNESS_COPY.get(lang, _FRESHNESS_COPY["en"])
     if not seen_at:
-        return "Availability unknown", True
+        return unknown, True
     if seen_at.tzinfo is None:
         seen_at = seen_at.replace(tzinfo=timezone.utc)
     delta = datetime.now(timezone.utc) - seen_at
-    hours = delta.total_seconds() / 3600
-    if hours < 1:
-        return "Verified just now", False
-    if hours < 24:
-        return f"Verified {int(hours)}h ago", False
-    days = int(hours // 24)
-    if days == 1:
-        return "Verified 1d ago", False
-    if days <= 2:
-        return f"Verified {days}d ago", False
-    return f"Checked {days}d ago", True
+    elapsed_hours = delta.total_seconds() / 3600
+    if elapsed_hours < 1:
+        return now, False
+    if elapsed_hours < 24:
+        return hours.format(hours=int(elapsed_hours)), False
+    elapsed_days = int(elapsed_hours // 24)
+    if elapsed_days == 1:
+        return one_day, False
+    if elapsed_days <= 2:
+        return days.format(days=elapsed_days), False
+    return stale.format(days=elapsed_days), True
 
 
 def _template_context(request: Request, **extra) -> dict:
@@ -369,6 +556,7 @@ async def search(
 
     search_other_cities = list_cities_for_country(country_upper, limit=50)
     search_cities_title = "Other cities in " + COUNTRY_NAMES.get(country_upper, {}).get("en", country_upper)
+    listing_ui = _listing_ui(country_upper)
     return templates.TemplateResponse(
         request,
         "search.html",
@@ -389,6 +577,7 @@ async def search(
             has_next=page < total_pages,
             other_cities=search_other_cities,
             popular_cities_title=search_cities_title,
+            listing_ui=listing_ui,
         ),
     )
 
@@ -425,6 +614,7 @@ async def city_seo_page(
     faq_content = get_faq_content(country_code, city_info)
     faq_jsonld = build_faq_jsonld(faq_content)
     other_cities = list_cities_for_country(country_code, limit=50, exclude_slug=city_info["slug"])
+    listing_ui = _listing_ui(country_code)
 
     return templates.TemplateResponse(
         request,
@@ -440,6 +630,7 @@ async def city_seo_page(
             page_intro=seo_copy["intro"],
             popular_cities_title=seo_copy["popular_cities"],
             other_cities=other_cities,
+            listing_ui=listing_ui,
             breadcrumb_jsonld=json.dumps(breadcrumb_jsonld, ensure_ascii=False),
             faq_jsonld=json.dumps(faq_jsonld, ensure_ascii=False),
             faq_content=faq_content,
@@ -608,9 +799,11 @@ async def _fetch_filtered_listings(
         .join(Retailer, Listing.retailer_id == Retailer.id)
         .where(Listing.country == filters.country)
         .order_by(
-            # In-stock first, then freshest data first (a stale listing may
-            # already be gone), then cheapest.
+            # In-stock first. Amazon follows because it has the strongest
+            # purchase-trust signal and directly supports the Associates goal;
+            # then freshest data and cheapest price.
             (Listing.stock_status == "in_stock").desc(),
+            Retailer.domain.ilike("amazon.%").desc(),
             Listing.last_seen_at.desc().nullslast(),
             Listing.price.asc().nullslast(),
         )
@@ -657,8 +850,8 @@ async def _fetch_filtered_listings(
                 "btu_min": product.btu_min,
                 "btu_max": product.btu_max,
                 "affiliate_url": f"/go/{listing.id}",
-                "freshness_label": _freshness(listing.last_seen_at)[0],
-                "stale": _freshness(listing.last_seen_at)[1],
+                "freshness_label": _freshness(listing.last_seen_at, listing.country)[0],
+                "stale": _freshness(listing.last_seen_at, listing.country)[1],
             }
         )
     return rows, total_count

@@ -28,16 +28,16 @@
     </form>
 
     <div class="flex items-center justify-between mb-4">
-      <p class="text-slate-600">{{ total }} result{{ 's' if total != 1 else '' }} found</p>
+      <p class="text-slate-600">{{ total }} {{ listing_ui.result_found }}</p>
       <button onclick="document.getElementById('alert-modal').classList.remove('hidden')" class="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg px-4 py-2">
-        + Create alert
+        {{ listing_ui.create_alert }}
       </button>
     </div>
 
     {% if listings %}
     <div class="flex items-center gap-2 mb-4 text-sm text-slate-500">
       <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-      <span>We compare prices across Amazon, MediaMarkt, Boulanger, Darty and more. <span class="text-slate-400">Affiliate links may earn us a commission.</span></span>
+      <span>{{ listing_ui.trust_intro }} <span class="text-slate-400">{{ listing_ui.affiliate_note }}</span></span>
     </div>
     <div class="space-y-4">
       {% for item in listings %}
@@ -51,16 +51,16 @@
               {% elif item.stock_status == 'out_of_stock' %}bg-red-100 text-red-700
               {% elif item.stock_status == 'back_order' %}bg-yellow-100 text-yellow-700
               {% else %}bg-slate-100 text-slate-700{% endif %}">
-              {% if item.stale %}{{ item.stock_status|stock_label }} (unconfirmed){% else %}{{ item.stock_status|stock_label }}{% endif %}
+              {% if item.stale %}{{ listing_ui.stock_labels.get(item.stock_status, item.stock_status) }} ({{ listing_ui.unconfirmed }}){% else %}{{ listing_ui.stock_labels.get(item.stock_status, item.stock_status) }}{% endif %}
             </span>
             {% if item.delivery_days %}
-            <span class="text-xs text-slate-500">Delivery in {{ item.delivery_days }} day{{ 's' if item.delivery_days != 1 else '' }}</span>
+            <span class="text-xs text-slate-500">{{ listing_ui.delivery }} {{ item.delivery_days }} {{ listing_ui.delivery_days if item.delivery_days != 1 else listing_ui.delivery_day }}</span>
             {% endif %}
           </div>
           <h3 class="font-semibold text-lg">{{ item.name }}</h3>
-          <p class="text-sm text-slate-500">{{ item.brand or 'Unknown brand' }} · {{ item.btu_min or '?' }} BTU · {{ item.retailer }}</p>
+          <p class="text-sm text-slate-500">{{ item.brand or listing_ui.unknown_brand }} · {{ item.btu_min or '?' }} BTU · {{ item.retailer }}</p>
           {% if item.stock_status == 'in_stock' and not item.stale %}
-          <p class="text-xs mt-1 text-red-500 font-medium">⚡ In high demand — stock changes hourly
+          <p class="text-xs mt-1 text-red-500 font-medium">{{ listing_ui.high_demand }}
           </p>
           {% endif %}
           <p class="text-xs mt-1"><span class="{% if item.stale %}text-amber-600{% else %}text-slate-400{% endif %}">● {{ item.freshness_label }}</span></p>
@@ -68,7 +68,7 @@
         <div class="text-right min-w-[140px]">
           <div class="text-2xl font-bold text-slate-900">{{ item.price|price(item.currency) }}</div>
           <a href="{{ item.affiliate_url }}" target="_blank" rel="nofollow sponsored" class="inline-block mt-2 {% if item.stock_status == 'in_stock' %}bg-green-600 hover:bg-green-700{% else %}bg-blue-600 hover:bg-blue-700{% endif %} text-white text-sm font-semibold rounded-lg px-4 py-2">
-            Buy at {{ item.retailer }} →</a>
+            {{ listing_ui.buy_prefix }} {{ item.retailer }} →</a>
         </div>
       </div>
       {% endfor %}
@@ -78,27 +78,27 @@
     <nav class="flex items-center justify-center gap-2 mt-8" aria-label="Pagination">
       {% if has_prev %}
       <a href="?country={{ filters.country }}{% if filters.city %}&city={{ filters.city }}{% endif %}{% if filters.min_btu %}&min_btu={{ filters.min_btu }}{% endif %}{% if filters.max_price %}&max_price={{ filters.max_price }}{% endif %}{% if filters.q %}&q={{ filters.q }}{% endif %}{% if filters.in_stock_only %}&in_stock_only=true{% endif %}&page={{ current_page - 1 }}"
-         class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm font-medium">← Previous</a>
+         class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm font-medium">← {{ listing_ui.previous }}</a>
       {% else %}
-      <span class="px-4 py-2 rounded-lg border border-slate-200 text-slate-300 text-sm font-medium cursor-not-allowed">← Previous</span>
+      <span class="px-4 py-2 rounded-lg border border-slate-200 text-slate-300 text-sm font-medium cursor-not-allowed">← {{ listing_ui.previous }}</span>
       {% endif %}
 
-      <span class="text-sm text-slate-600 px-2">Page {{ current_page }} of {{ total_pages }}</span>
+      <span class="text-sm text-slate-600 px-2">{{ listing_ui.page }} {{ current_page }} {{ listing_ui.of }} {{ total_pages }}</span>
 
       {% if has_next %}
       <a href="?country={{ filters.country }}{% if filters.city %}&city={{ filters.city }}{% endif %}{% if filters.min_btu %}&min_btu={{ filters.min_btu }}{% endif %}{% if filters.max_price %}&max_price={{ filters.max_price }}{% endif %}{% if filters.q %}&q={{ filters.q }}{% endif %}{% if filters.in_stock_only %}&in_stock_only=true{% endif %}&page={{ current_page + 1 }}"
-         class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm font-medium">Next →</a>
+         class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm font-medium">{{ listing_ui.next }} →</a>
       {% else %}
-      <span class="px-4 py-2 rounded-lg border border-slate-200 text-slate-300 text-sm font-medium cursor-not-allowed">Next →</span>
+      <span class="px-4 py-2 rounded-lg border border-slate-200 text-slate-300 text-sm font-medium cursor-not-allowed">{{ listing_ui.next }} →</span>
       {% endif %}
     </nav>
     {% endif %}
     {% else %}
     <div class="bg-white rounded-xl shadow p-12 text-center">
-      <p class="text-lg text-slate-600 mb-2">No matching units in stock right now.</p>
-      <p class="text-slate-500 text-sm mb-6">Create an alert and we'll email you as soon as one becomes available.</p>
+      <p class="text-lg text-slate-600 mb-2">{{ listing_ui.no_matches_title }}</p>
+      <p class="text-slate-500 text-sm mb-6">{{ listing_ui.no_matches_body }}</p>
       <button onclick="document.getElementById('alert-modal').classList.remove('hidden')" class="bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg px-6 py-3">
-        Create an alert
+        {{ listing_ui.create_alert_long }}
       </button>
     </div>
     {% endif %}
