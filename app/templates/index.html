@@ -52,7 +52,7 @@ document.getElementById('homepage-alert-form')?.addEventListener('submit', async
   <div class="max-w-4xl mx-auto px-4 text-center">
     <h1 class="text-4xl md:text-5xl font-extrabold mb-4">Stop refreshing retailer sites.</h1>
     <p class="text-lg md:text-xl text-blue-100 mb-8">
-      KlimaRadar tracks portable AC stock and prices across Germany, France, Italy, Spain, the Netherlands and Belgium.
+      KlimaRadar tracks portable AC stock and prices across Germany, France, Italy, Spain, the Netherlands, Belgium and the United Kingdom.
       Get an email the moment a unit is available.
     </p>
     <form action="/search" method="get" class="bg-white rounded-xl p-4 shadow-lg max-w-2xl mx-auto flex flex-col md:flex-row gap-3">
@@ -142,8 +142,8 @@ document.getElementById('homepage-alert-form')?.addEventListener('submit', async
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-4">
         {% for city in country.cities %}
         <a href="/{{ country.code|lower }}/{{ city.slug }}/portable-ac-in-stock" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
-          <h3 class="font-semibold text-blue-600">Portable AC in {{ city.display_name }}</h3>
-          <p class="text-sm text-slate-500">See in-stock units in {{ city.region }}.</p>
+          <h3 class="font-semibold text-blue-600">{{ city.search_title }}</h3>
+          <p class="text-sm text-slate-500">{{ city.search_intro }}</p>
         </a>
         {% endfor %}
       </div>

@@ -1,4 +1,4 @@
-﻿"""Public HTML pages and affiliate redirect."""
+"""Public HTML pages and affiliate redirect."""
 
 import hashlib
 import json
@@ -50,6 +50,17 @@ _DEFAULT_DESCRIPTION = (
 )
 
 router = APIRouter()
+
+
+_CITY_LINK_COPY = {
+    "DE": ("Mobile Klimaanlage in {city}", "Aktuelle Geräte und Preise für {city} ansehen."),
+    "FR": ("Climatiseur mobile à {city}", "Voir les appareils disponibles et les prix à {city}."),
+    "IT": ("Climatizzatore portatile a {city}", "Vedi disponibilità e prezzi a {city}."),
+    "ES": ("Aire acondicionado portátil en {city}", "Consulta disponibilidad y precios en {city}."),
+    "NL": ("Draagbare airconditioner in {city}", "Bekijk beschikbaarheid en prijzen in {city}."),
+    "BE": ("Draagbare airconditioner in {city}", "Bekijk beschikbaarheid en prijzen in {city}."),
+    "GB": ("Portable AC in {city}", "See in-stock units and prices in {city}."),
+}
 
 
 
@@ -346,7 +357,14 @@ async def index(request: Request, session: AsyncSession = Depends(get_db)):
             {
                 "code": code,
                 "name": COUNTRY_NAMES.get(code, {}).get("en", code),
-                "cities": cities,
+                "cities": [
+                    {
+                        **city,
+                        "search_title": _CITY_LINK_COPY[code][0].format(city=city["display_name"]),
+                        "search_intro": _CITY_LINK_COPY[code][1].format(city=city["display_name"]),
+                    }
+                    for city in cities
+                ],
             }
         )
 

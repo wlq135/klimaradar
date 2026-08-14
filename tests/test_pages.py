@@ -158,6 +158,10 @@ async def test_homepage_has_structured_data(client):
     assert '"@type": "WebSite"' in text
     assert '"@type": "Organization"' in text
     assert '<html lang="en"' in text
+    assert "Mobile Klimaanlage in Berlin" in text
+    assert "Climatiseur mobile à Paris" in text
+    assert "Portable AC in London" in text
+    assert "United Kingdom" in text
 
 
 def test_freshness_labels_recent_and_stale():
