@@ -20,6 +20,7 @@ from app.seo import (
     get_city_info,
     get_seo_copy,
     get_sitemap_cities,
+    guide_path,
 )
 
 
@@ -167,6 +168,63 @@ async def test_sitemap_contains_city_urls(client):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("country", "html_lang", "country_name"),
+    [
+        ("DE", "de-DE", "Deutschland"),
+        ("FR", "fr-FR", "France"),
+        ("IT", "it-IT", "Italia"),
+        ("ES", "es-ES", "España"),
+        ("NL", "nl-NL", "Nederland"),
+        ("BE", "nl-BE", "België"),
+        ("GB", "en-GB", "United Kingdom"),
+    ],
+)
+async def test_country_buying_guides_render(client, country, html_lang, country_name):
+    response = await client.get(guide_path(country))
+
+    assert response.status_code == 200
+    text = response.text
+    assert f'<html lang="{html_lang}"' in text
+    assert country_name in text
+    assert f'href="/search?country={country}"' in text
+    assert '"@type": "Article"' in text
+    assert '"@type": "FAQPage"' in text
+    assert "12,000 BTU" in text or "12.000 BTU" in text or "12 000 BTU" in text
+
+
+@pytest.mark.asyncio
+async def test_country_search_links_to_guide_and_renders_faq(client):
+    response = await client.get("/search?country=IT")
+
+    assert response.status_code == 200
+    text = response.text
+    assert 'href="/guides/it/portable-air-conditioner"' in text
+    assert "Guida: climatizzatori portatili in Italia" in text
+    assert "Domande frequenti sui climatizzatori portatili" in text
+    assert '"@type": "FAQPage"' in text
+
+
+@pytest.mark.asyncio
+async def test_homepage_and_sitemap_expose_all_guides(client):
+    home = await client.get("/")
+    sitemap = await client.get("/sitemap.xml")
+
+    assert home.status_code == 200
+    assert sitemap.status_code == 200
+    for country in ("DE", "FR", "IT", "ES", "NL", "BE", "GB"):
+        path = guide_path(country)
+        assert f'href="{path}"' in home.text
+        assert f"<loc>" in sitemap.text and path in sitemap.text
+
+
+def test_uk_prices_use_pound_symbol():
+    from app.templating import format_price
+
+    assert format_price(445.99, "GBP") == "£445.99"
+
+
+@pytest.mark.asyncio
 async def test_homepage_has_structured_data(client):
     response = await client.get("/")
     assert response.status_code == 200
@@ -204,4 +262,3 @@ def test_freshness_labels_recent_and_stale():
     # Naive datetimes are treated as UTC without crashing.
     label_naive, _ = _freshness(datetime.now(timezone.utc).replace(tzinfo=None))
     assert isinstance(label_naive, str)
-

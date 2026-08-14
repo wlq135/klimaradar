@@ -13,7 +13,11 @@ templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 def format_price(value: float | None, currency: str = "EUR") -> str:
     if value is None:
         return "N/A"
-    return f"€{value:,.2f}" if currency == "EUR" else f"{value:,.2f} {currency}"
+    currency_symbols = {"EUR": "€", "GBP": "£"}
+    symbol = currency_symbols.get(currency)
+    if symbol:
+        return f"{symbol}{value:,.2f}"
+    return f"{value:,.2f} {currency}"
 
 
 def stock_label(status: str) -> str:

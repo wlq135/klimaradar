@@ -7,7 +7,16 @@
     {% if page_intro %}
     <p class="text-slate-600 max-w-3xl">{{ page_intro }}</p>
     {% else %}
-    <p class="text-slate-500">Real-time stock and price tracking for portable air conditioners.</p>
+      <p class="text-slate-500">Real-time stock and price tracking for portable air conditioners.</p>
+    {% endif %}
+    {% if country_guide %}
+    <a href="{{ country_guide.path }}" class="mt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-blue-50 border border-blue-100 rounded-xl p-4 hover:bg-blue-100 transition">
+      <span>
+        <span class="block font-semibold text-blue-700">{{ country_guide.card_title }}</span>
+        <span class="block text-sm text-slate-600">{{ country_guide.card_body }}</span>
+      </span>
+      <span class="text-sm font-semibold text-blue-700 whitespace-nowrap">{{ country_guide.read_guide }}</span>
+    </a>
     {% endif %}
   </div>
 </section>
@@ -136,7 +145,7 @@
 {% if faq_content %}
 <section class="bg-white border-t border-slate-200 py-10">
   <div class="max-w-3xl mx-auto px-4">
-    <h2 class="text-xl font-bold mb-6">Frequently asked questions</h2>
+    <h2 class="text-xl font-bold mb-6">{{ faq_title|default('Frequently asked questions') }}</h2>
     <div class="space-y-4">
       {% for faq in faq_content %}
       <details class="group bg-slate-50 rounded-lg p-4">

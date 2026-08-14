@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="bg-white border-b border-slate-200 py-10">
+  <div class="max-w-4xl mx-auto px-4">
+    <nav class="text-sm text-slate-500 mb-3" aria-label="Breadcrumb">
+      <a href="/" class="hover:text-blue-600">KlimaRadar</a>
+      <span aria-hidden="true"> › </span>
+      <a href="/search?country={{ guide.country }}" class="hover:text-blue-600">{{ guide.country_name }}</a>
+      <span aria-hidden="true"> › </span>
+      <span aria-current="page">{{ guide.h1 }}</span>
+    </nav>
+    <p class="text-sm font-semibold text-blue-700 uppercase tracking-wide">{{ guide.badge }}</p>
+    <h1 class="text-3xl md:text-4xl font-bold mt-2 mb-4">{{ guide.h1 }}</h1>
+    <p class="text-lg text-slate-600 leading-relaxed">{{ guide.lead }}</p>
+    <div class="flex flex-col sm:flex-row gap-3 mt-6">
+      <a href="/search?country={{ guide.country }}" class="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-5 py-3">
+        {{ guide.cta }} →
+      </a>
+      <a href="/search?country={{ guide.country }}#alert" class="inline-flex items-center justify-center bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded-lg px-5 py-3">
+        {{ listing_ui.create_alert_long }}
+      </a>
+    </div>
+  </div>
+</section>
+
+<article class="py-10">
+  <div class="max-w-4xl mx-auto px-4">
+    {% for section in guide.sections %}
+    <section class="bg-white rounded-xl shadow p-6 md:p-8 mb-6">
+      <h2 class="text-2xl font-bold mb-4">{{ section.heading }}</h2>
+      {% for paragraph in section.paragraphs|default([]) %}
+      <p class="text-slate-600 leading-relaxed mb-4">{{ paragraph }}</p>
+      {% endfor %}
+
+      {% if section.table_rows %}
+      <div class="overflow-x-auto">
+        <p class="text-sm font-semibold text-slate-500 mb-2">{{ section.table_title }}</p>
+        <table class="min-w-full border-collapse text-sm">
+          <thead>
+            <tr class="bg-slate-100 text-left">
+              {% for header in section.table_headers %}
+              <th scope="col" class="px-4 py-3 font-semibold">{{ header }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200">
+            {% for row in section.table_rows %}
+            <tr>
+              {% for cell in row %}
+              <td class="px-4 py-3 text-slate-600">{{ cell }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+
+      {% if section.bullets %}
+      <ul class="grid gap-3 sm:grid-cols-2">
+        {% for bullet in section.bullets %}
+        <li class="flex gap-3 bg-slate-50 rounded-lg p-4">
+          <svg class="w-5 h-5 text-green-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+          <span class="text-slate-700 text-sm leading-relaxed">{{ bullet }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </section>
+    {% endfor %}
+  </div>
+</article>
+
+<section class="bg-blue-700 py-10">
+  <div class="max-w-4xl mx-auto px-4 text-center">
+    <h2 class="text-2xl font-bold text-white mb-3">{{ guide.live_title }}</h2>
+    <p class="text-blue-100 mb-6">{{ guide.live_body }}</p>
+    <a href="/search?country={{ guide.country }}" class="inline-flex items-center justify-center bg-white text-blue-700 font-bold rounded-lg px-6 py-3 hover:bg-blue-50 transition">
+      {{ guide.cta }} →
+    </a>
+  </div>
+</section>
+
+{% if top_cities %}
+<section class="bg-white border-t border-slate-200 py-10">
+  <div class="max-w-4xl mx-auto px-4">
+    <h2 class="text-xl font-bold mb-5">{{ guide.cities_title }}</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      {% for city in top_cities %}
+      <a href="/{{ city.country|lower }}/{{ city.slug }}/portable-ac-in-stock" class="bg-slate-50 rounded-lg p-4 hover:bg-white hover:shadow transition">
+        <h3 class="font-semibold text-blue-600">{{ city.display_name }}</h3>
+        <p class="text-sm text-slate-500">{{ city.region }}</p>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="bg-slate-50 border-t border-slate-200 py-10">
+  <div class="max-w-3xl mx-auto px-4">
+    <h2 class="text-xl font-bold mb-6">{{ guide.faq_title }}</h2>
+    <div class="space-y-4">
+      {% for faq in guide.faqs %}
+      <details class="group bg-white rounded-lg p-5">
+        <summary class="flex items-center justify-between cursor-pointer font-medium text-slate-800">
+          {{ faq.question }}
+          <svg class="w-5 h-5 text-slate-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
+        </summary>
+        <p class="mt-3 text-slate-600 text-sm leading-relaxed">{{ faq.answer }}</p>
+      </details>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{% if other_guides %}
+<section class="bg-white border-t border-slate-200 py-10">
+  <div class="max-w-4xl mx-auto px-4">
+    <h2 class="text-xl font-bold mb-5">{{ guide.other_guides_title }}</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {% for other in other_guides %}
+      <a href="{{ other.path }}" class="bg-slate-50 rounded-lg p-4 hover:bg-white hover:shadow transition">
+        <h3 class="font-semibold text-blue-600">{{ other.country_name }}</h3>
+        <p class="text-sm text-slate-500">{{ other.h1 }}</p>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<script type="application/ld+json">
+{{ article_jsonld|safe }}
+</script>
+<script type="application/ld+json">
+{{ faq_jsonld|safe }}
+</script>
+{% endblock %}

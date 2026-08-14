@@ -16,6 +16,13 @@ from app.seo.cities import (
     get_faq_content,
     build_faq_jsonld,
 )
+from app.seo.guides import (
+    GUIDE_SLUG,
+    build_article_jsonld,
+    get_country_guide,
+    guide_path,
+    list_country_guides,
+)
 
 __all__ = [
     "CITY_METADATA",
@@ -32,4 +39,9 @@ __all__ = [
     "FAQ_CONTENT",
     "get_faq_content",
     "build_faq_jsonld",
+    "GUIDE_SLUG",
+    "build_article_jsonld",
+    "get_country_guide",
+    "guide_path",
+    "list_country_guides",
 ]

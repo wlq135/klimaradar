@@ -33,6 +33,9 @@ from app.seo import (
     get_seo_copy,
     get_sitemap_cities,
     list_cities_for_country,
+    build_article_jsonld,
+    get_country_guide,
+    list_country_guides,
 )
 from app.services.affiliate import tag_url
 from app.services.paddle import list_checkout_domains
@@ -391,10 +394,14 @@ async def index(request: Request, session: AsyncSession = Depends(get_db)):
         cities = [c for c in CITY_METADATA if c["country"] == code]
         if not cities:
             continue
+        guide = get_country_guide(code)
         popular_searches.append(
             {
                 "code": code,
                 "name": COUNTRY_NAMES.get(code, {}).get("en", code),
+                "guide_path": guide["path"],
+                "guide_title": guide["card_title"],
+                "guide_intro": guide["card_body"],
                 "cities": [
                     {
                         **city,
@@ -467,6 +474,8 @@ async def sitemap_xml():
     ]
     for country, city in get_sitemap_cities():
         urls.append((f"{base}/{country}/{city}/portable-ac-in-stock", "0.7"))
+    for guide in list_country_guides():
+        urls.append((f"{base}{guide['path']}", "0.8"))
 
     lines = ['<?xml version="1.0" encoding="UTF-8"?>']
     lines.append('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
@@ -609,6 +618,11 @@ async def search(
     search_other_cities = list_cities_for_country(country_upper, limit=50)
     search_cities_title = "Other cities in " + COUNTRY_NAMES.get(country_upper, {}).get("en", country_upper)
     listing_ui = _listing_ui(country_upper)
+    country_guide = get_country_guide(country_upper)
+    if country_guide:
+        search_cities_title = country_guide["cities_title"]
+    faq_content = country_guide["faqs"] if country_guide else None
+    faq_jsonld = build_faq_jsonld(faq_content) if country_guide else None
     return templates.TemplateResponse(
         request,
         "search.html",
@@ -632,6 +646,51 @@ async def search(
             other_cities=search_other_cities,
             popular_cities_title=search_cities_title,
             listing_ui=listing_ui,
+            country_guide=country_guide,
+            faq_title=country_guide["faq_title"] if country_guide else None,
+            faq_content=faq_content,
+            faq_jsonld=json.dumps(faq_jsonld, ensure_ascii=False) if faq_jsonld else None,
+        ),
+    )
+
+
+@router.api_route(
+    "/guides/{country}/portable-air-conditioner",
+    methods=["GET", "HEAD"],
+    response_class=HTMLResponse,
+)
+async def country_buying_guide(request: Request, country: str):
+    guide = get_country_guide(country)
+    if guide is None:
+        raise HTTPException(status_code=404, detail="Guide not found")
+
+    base = settings.base_url.rstrip("/")
+    canonical_url = f"{base}{guide['path']}"
+    hreflang_alternates = build_hreflang_alternates(
+        guide["html_lang"], canonical_url, base
+    )
+    article_jsonld = build_article_jsonld(base, guide)
+    faq_jsonld = build_faq_jsonld(guide["faqs"])
+    top_cities = list_cities_for_country(guide["country"], limit=9)
+    other_guides = list_country_guides(exclude=guide["country"])
+    listing_ui = _listing_ui(guide["country"])
+
+    return templates.TemplateResponse(
+        request,
+        "guide.html",
+        _template_context(
+            request,
+            title=guide["title"],
+            description=guide["description"],
+            html_lang=guide["html_lang"],
+            hreflang_alternates=hreflang_alternates,
+            canonical_url=canonical_url,
+            guide=guide,
+            top_cities=top_cities,
+            other_guides=other_guides,
+            listing_ui=listing_ui,
+            article_jsonld=json.dumps(article_jsonld, ensure_ascii=False),
+            faq_jsonld=json.dumps(faq_jsonld, ensure_ascii=False),
         ),
     )
 
