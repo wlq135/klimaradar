@@ -35,6 +35,55 @@ async def test_generic_price_parser():
 
 
 @pytest.mark.asyncio
+async def test_amazon_uk_spider_uses_gbp_currency_preference():
+    class FakeContext:
+        def __init__(self):
+            self.cookies = []
+
+        async def add_cookies(self, cookies):
+            self.cookies.extend(cookies)
+
+    from app.spiders.amazon_uk import AmazonUkSpider
+
+    spider = AmazonUkSpider(retailer_id=1, country="GB", affiliate_tag=None)
+    context = FakeContext()
+    await spider._pre_navigate(context)
+
+    assert spider.domain == "https://www.amazon.co.uk"
+    assert spider.currency == "GBP"
+    assert "10000 BTU air conditioner" in spider.default_queries
+    assert "14000 BTU air conditioner" in spider.default_queries
+    assert context.cookies == [
+        {
+            "name": "i18n-prefs",
+            "value": "GBP",
+            "domain": ".amazon.co.uk",
+            "path": "/",
+        },
+        {
+            "name": "session-id",
+            "value": "000-0000000-0000000",
+            "domain": ".amazon.co.uk",
+            "path": "/",
+        },
+    ]
+
+
+def test_registry_includes_amazon_uk():
+    from app.spiders.registry import get_spiders_for_country
+    from app.spiders.amazon_uk import AmazonUkSpider
+
+    spiders = get_spiders_for_country(
+        {("GB", "Amazon United Kingdom"): 123}, country_filter="GB"
+    )
+
+    assert [spider.name for spider in spiders] == ["Amazon United Kingdom"]
+    assert not AmazonUkSpider._is_relevant_title(
+        "Sensibo Sky 3 Pack, Smart Home Air Conditioner System"
+    )
+
+
+@pytest.mark.asyncio
 async def test_affiliate_tagging():
     from app.services.affiliate import tag_url
 

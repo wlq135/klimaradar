@@ -39,17 +39,30 @@ async def run_scrape(country: str | None = None) -> dict[str, dict]:
         base_query = "portable air conditioner"
         for spider in spiders:
             try:
-                query = getattr(spider, "default_query", base_query)
-                snapshots = await spider.fetch_listings(
-                    query=query,
-                    product_type="portable",
-                )
+                queries = list(getattr(spider, "default_queries", None) or [])
+                if not queries:
+                    queries = [getattr(spider, "default_query", base_query)]
+
+                snapshots: list = []
+                seen_listing_keys: set[str] = set()
+                for query in queries:
+                    fetched = await spider.fetch_listings(
+                        query=query,
+                        product_type="portable",
+                    )
+                    for snapshot in fetched:
+                        listing_key = snapshot.sku or snapshot.url or snapshot.name
+                        if listing_key in seen_listing_keys:
+                            continue
+                        seen_listing_keys.add(listing_key)
+                        snapshots.append(snapshot)
                 stats = await upsert_listings(
                     session, spider.retailer_id, spider.country, snapshots
                 )
                 results[spider.name] = {
                     "success": True,
                     "listings": len(snapshots),
+                    "queries": queries,
                     "stats": stats,
                 }
                 logger.info(

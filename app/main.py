@@ -80,6 +80,7 @@ async def lifespan(app: FastAPI):
         settings.amazon_de_affiliate_tag, settings.amazon_fr_affiliate_tag,
         settings.amazon_it_affiliate_tag, settings.amazon_es_affiliate_tag,
         settings.amazon_nl_affiliate_tag, settings.amazon_be_affiliate_tag,
+        settings.amazon_uk_affiliate_tag,
         settings.mediamarkt_de_affiliate_tag, settings.boulanger_fr_affiliate_tag,
         settings.darty_fr_affiliate_tag,
     ]

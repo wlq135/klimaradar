@@ -82,6 +82,7 @@ class BaseAmazonSpider(PlaywrightSpider):
         "fensterabdeckung",      # DE: window cover
         "reißfest",              # DE: tear-resistant (window seal material)
         "hot air stop",          # DE: window seal product feature
+        "sensibo",               # Smart AC controller, not an AC unit
     ]
 
     _UNAVAILABLE_MARKERS: list[str] = [
@@ -113,14 +114,14 @@ class BaseAmazonSpider(PlaywrightSpider):
         return any(word in lower for word in cls._INCLUDE_TITLE_WORDS)
 
     async def _pre_navigate(self, context) -> None:
-        # Force EUR currency preference before loading the page.
+        # Set the marketplace currency preference before loading the page.
         parsed = urlparse(self.domain)
         cookie_domain = f".{parsed.netloc.replace('www.', '')}"
         await context.add_cookies(
             [
                 {
                     "name": "i18n-prefs",
-                    "value": "EUR",
+                    "value": self.currency,
                     "domain": cookie_domain,
                     "path": "/",
                 },

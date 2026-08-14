@@ -100,7 +100,7 @@ class Settings(BaseSettings):
     scraper_interval_minutes: int = 60
     request_timeout_seconds: int = 30
     user_agent: str = (
-        "Mozilla/5.0 (compatible; KlimaRadar/1.0; +https://klima-radar.com)"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
     )
 
 
