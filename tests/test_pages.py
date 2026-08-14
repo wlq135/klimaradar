@@ -114,6 +114,22 @@ def test_get_sitemap_cities_covers_both_countries():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("path", "expected_title", "expected_h1"),
+    [
+        ("/search?country=IT", "Climatizzatore portatile disponibile a Italia — KlimaRadar", "Climatizzatore portatile disponibile a Italia"),
+        ("/search?country=ES", "Aire acondicionado portátil en stock en España — KlimaRadar", "Aire acondicionado portátil en stock en España"),
+        ("/search?country=GB", "Portable AC in stock in United Kingdom — KlimaRadar", "Portable AC in stock in United Kingdom"),
+    ],
+)
+async def test_country_search_pages_use_local_language(client, path, expected_title, expected_h1):
+    response = await client.get(path)
+    assert response.status_code == 200
+    assert f"<title>{expected_title}</title>" in response.text
+    assert f"<h1 class=\"text-2xl md:text-3xl font-bold mb-2\">{expected_h1}</h1>" in response.text
+
+
+@pytest.mark.asyncio
 async def test_city_page_renders_localized_german(client):
     response = await client.get("/de/berlin/portable-ac-in-stock")
     assert response.status_code == 200

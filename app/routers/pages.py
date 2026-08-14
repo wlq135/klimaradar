@@ -64,6 +64,44 @@ _CITY_LINK_COPY = {
 
 
 
+
+_COUNTRY_SEARCH_COPY = {
+    "DE": {
+        "title": "Mobile Klimaanlage auf Lager in {place} — KlimaRadar",
+        "h1": "Mobile Klimaanlage auf Lager in {place}",
+        "intro": "Vergleiche aktuelle Preise, Verfügbarkeit und Lieferzeiten mobiler Klimaanlagen in {place}.",
+    },
+    "FR": {
+        "title": "Climatiseur mobile en stock à {place} — KlimaRadar",
+        "h1": "Climatiseur mobile en stock à {place}",
+        "intro": "Comparez les prix, la disponibilité et les délais de livraison des climatiseurs mobiles à {place}.",
+    },
+    "IT": {
+        "title": "Climatizzatore portatile disponibile a {place} — KlimaRadar",
+        "h1": "Climatizzatore portatile disponibile a {place}",
+        "intro": "Confronta prezzi, disponibilità e tempi di consegna dei climatizzatori portatili a {place}.",
+    },
+    "ES": {
+        "title": "Aire acondicionado portátil en stock en {place} — KlimaRadar",
+        "h1": "Aire acondicionado portátil en stock en {place}",
+        "intro": "Compara precios, disponibilidad y tiempos de entrega de aire acondicionado portátil en {place}.",
+    },
+    "NL": {
+        "title": "Draagbare airconditioner op voorraad in {place} — KlimaRadar",
+        "h1": "Draagbare airconditioner op voorraad in {place}",
+        "intro": "Vergelijk prijzen, beschikbaarheid en levertijden van draagbare airconditioners in {place}.",
+    },
+    "BE": {
+        "title": "Draagbare airconditioner op voorraad in {place} — KlimaRadar",
+        "h1": "Draagbare airconditioner op voorraad in {place}",
+        "intro": "Vergelijk prijzen, beschikbaarheid en levertijden van draagbare airconditioners in {place}.",
+    },
+    "GB": {
+        "title": "Portable AC in stock in {place} — KlimaRadar",
+        "h1": "Portable AC in stock in {place}",
+        "intro": "Compare live portable air conditioner prices, availability and delivery times in {place}.",
+    },
+}
 _LISTING_UI_COPY = {
     "de": {
         "result_found": "Ergebnisse gefunden",
@@ -552,26 +590,22 @@ async def search(
     html_lang = COUNTRY_LANGUAGES.get(country_upper, "en")
     hreflang_alternates = build_hreflang_alternates(html_lang, canonical_url, base)
 
-    if country_upper == "DE":
-        title = f"Mobile Klimaanlage auf Lager{f' in {city}' if city else ''} — {country_upper}"
-        description = (
-            f"Finde mobile Klimaanlagen auf Lager{f' in {city}' if city else ''} in Deutschland. "
-            "Vergleiche Preise, Verfügbarkeit und Lieferzeiten auf KlimaRadar."
-        )
-    elif country_upper == "FR":
-        title = f"Climatiseur mobile en stock{f' à {city}' if city else ''} — {country_upper}"
-        description = (
-            f"Trouvez des climatiseurs mobiles en stock{f' à {city}' if city else ''} en France. "
-            "Comparez les prix, la disponibilité et les délais de livraison sur KlimaRadar."
-        )
-    else:
-        country_name = COUNTRY_NAMES.get(country_upper, {}).get("en", country_upper)
-        title = f"Portable AC in stock{f' in {city}' if city else ''}, {country_name} — KlimaRadar"
-        description = (
-            f"Browse portable air conditioners in stock{f' in {city}' if city else ''} in {country_name}. "
-            "Compare prices, stock status and delivery times on KlimaRadar."
-        )
-
+    language = COUNTRY_LANGUAGES.get(country_upper, "en")[:2]
+    country_name = COUNTRY_NAMES.get(country_upper, {}).get(
+        language, COUNTRY_NAMES.get(country_upper, {}).get("en", country_upper)
+    )
+    search_copy = _COUNTRY_SEARCH_COPY.get(
+        country_upper,
+        {
+            "title": "Portable AC in stock in {place} — KlimaRadar",
+            "h1": "Portable AC in stock in {place}",
+            "intro": "Compare live portable air conditioner prices, availability and delivery times in {place}.",
+        },
+    )
+    place = city or country_name
+    title = search_copy["title"].format(place=place)
+    description = search_copy["intro"].format(place=place)
+    search_h1 = search_copy["h1"].format(place=place)
     search_other_cities = list_cities_for_country(country_upper, limit=50)
     search_cities_title = "Other cities in " + COUNTRY_NAMES.get(country_upper, {}).get("en", country_upper)
     listing_ui = _listing_ui(country_upper)
@@ -585,6 +619,8 @@ async def search(
             html_lang=html_lang,
             hreflang_alternates=hreflang_alternates,
             canonical_url=canonical_url,
+            h1=search_h1,
+            page_intro=description,
             listings=listings,
             filters=filters.model_dump(),
             total=total,
