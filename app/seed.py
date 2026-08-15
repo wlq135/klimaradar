@@ -93,7 +93,10 @@ async def seed_retailers(session: AsyncSession) -> None:
                 Retailer.country == retailer.country,
             )
         )
-        if not existing:
+        if existing:
+            existing.domain = retailer.domain
+            existing.affiliate_network = retailer.affiliate_network
+        else:
             session.add(retailer)
 
     await session.commit()

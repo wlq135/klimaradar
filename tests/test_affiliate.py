@@ -6,7 +6,6 @@ import os
 # settings object is loaded with the test affiliate tags.
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["AMAZON_DE_AFFILIATE_TAG"] = "klrmrd-21"
-os.environ["AMAZON_BE_AFFILIATE_TAG"] = "klrmrd-be-21"
 os.environ["MEDIAMARKT_DE_AFFILIATE_TAG"] = "klrmrd"
 os.environ["BOULANGER_FR_AFFILIATE_TAG"] = "klrmrd"
 
@@ -117,7 +116,12 @@ async def test_go_redirect_tags_amazon_url_and_logs_click(client, db_session):
 
 
 @pytest.mark.asyncio
-async def test_go_redirect_tags_amazon_belgium_marketplace_url(client, db_session):
+async def test_go_redirect_tags_amazon_belgium_marketplace_url(
+    client, db_session, monkeypatch
+):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "amazon_be_affiliate_tag", "klrmrd-be-21")
     listing = await _create_test_listing(
         db_session,
         retailer_name="Amazon Belgium",
