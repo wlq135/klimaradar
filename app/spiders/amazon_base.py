@@ -5,6 +5,7 @@ from urllib.parse import urljoin, urlparse
 
 from playwright.async_api import Page
 
+from app.services.product_attributes import extract_btu
 from app.spiders.base import ListingSnapshot
 from app.spiders.playwright_base import PlaywrightSpider
 
@@ -83,6 +84,11 @@ class BaseAmazonSpider(PlaywrightSpider):
         "reißfest",              # DE: tear-resistant (window seal material)
         "hot air stop",          # DE: window seal product feature
         "sensibo",               # Smart AC controller, not an AC unit
+        "swamp cooler",          # Evaporative cooler, not a compressor AC
+        "evaporative air cooler",
+        "under-dash",            # Vehicle air conditioner
+        "12v air conditioner",
+        "car air conditioner",
     ]
 
     _UNAVAILABLE_MARKERS: list[str] = [
@@ -110,6 +116,9 @@ class BaseAmazonSpider(PlaywrightSpider):
         # Universal accessory filter: applies to every marketplace even when a
         # subclass overrides _EXCLUDE_TITLE_WORDS.
         if any(word in lower for word in cls._ACCESSORY_WORDS):
+            return False
+        btu_min, btu_max = extract_btu(title)
+        if btu_min is not None and (btu_min < 5_000 or btu_max > 16_000):
             return False
         return any(word in lower for word in cls._INCLUDE_TITLE_WORDS)
 

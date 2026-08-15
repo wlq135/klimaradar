@@ -81,6 +81,29 @@ def test_registry_includes_amazon_uk():
     assert not AmazonUkSpider._is_relevant_title(
         "Sensibo Sky 3 Pack, Smart Home Air Conditioner System"
     )
+    assert not AmazonUkSpider._is_relevant_title(
+        "2000 BTU Portable Air Conditioner Mini Air Cooler"
+    )
+    assert not AmazonUkSpider._is_relevant_title(
+        "Portable Air Conditioners for Room, Swamp Cooler, Windowless Evaporative Air Cooler"
+    )
+    assert not AmazonUkSpider._is_relevant_title(
+        "12V Air Conditioner Under-Dash AC Kit for Classic Cars"
+    )
+    assert AmazonUkSpider._is_relevant_title(
+        "Portable Air Conditioner 10000 BTU with Remote Control"
+    )
+
+
+def test_amazon_de_filters_evaporative_coolers_without_exhaust_hose():
+    from app.spiders.amazon_de import AmazonDeSpider
+
+    assert not AmazonDeSpider._is_relevant_title(
+        "Klimagerät ohne Abluftschlauch 30L mit Kühlakkus"
+    )
+    assert AmazonDeSpider._is_relevant_title(
+        "OKYUK Mobile Klimaanlage 7000 BTU mit Abluftschlauch"
+    )
 
 
 @pytest.mark.asyncio

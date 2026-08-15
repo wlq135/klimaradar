@@ -933,11 +933,14 @@ async def _fetch_filtered_listings(
     limit: int | None = None,
     offset: int = 0,
 ) -> tuple[list[dict], int]:
+    # Marketplace inventory changes too quickly to show indefinitely stale rows.
+    stale_cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
     stmt = (
         select(Listing, Product, Retailer)
         .join(Product, Listing.product_id == Product.id)
         .join(Retailer, Listing.retailer_id == Retailer.id)
         .where(Listing.country == filters.country)
+        .where(Listing.last_seen_at >= stale_cutoff)
         .order_by(
             # In-stock first. Amazon follows because it has the strongest
             # purchase-trust signal and directly supports the Associates goal;

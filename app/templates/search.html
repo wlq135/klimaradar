@@ -67,7 +67,7 @@
             {% endif %}
           </div>
           <h3 class="font-semibold text-lg">{{ item.name }}</h3>
-          <p class="text-sm text-slate-500">{{ item.brand or listing_ui.unknown_brand }} · {{ item.btu_label or '?' }} BTU · {{ item.retailer }}</p>
+          <p class="text-sm text-slate-500">{% if item.brand %}{{ item.brand }} · {% endif %}{{ item.btu_label or '?' }} BTU · {{ item.retailer }}</p>
           {% if item.stock_status == 'in_stock' and not item.stale %}
           <p class="text-xs mt-1 text-red-500 font-medium">{{ listing_ui.high_demand }}
           </p>

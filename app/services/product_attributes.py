@@ -8,8 +8,10 @@ fallback so product cards do not lose trust with “Unknown brand · ? BTU”.
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
-from app.spiders.base import ListingSnapshot
+if TYPE_CHECKING:
+    from app.spiders.base import ListingSnapshot
 
 
 _BRANDS = [
@@ -32,6 +34,7 @@ _BRANDS = [
     "LG",
     "Midea",
     "Milectric",
+    "OKYUK",
     "Olimpia Splendid",
     "OneConcept",
     "Philips",
@@ -75,9 +78,9 @@ def _parse_number(value: str) -> int | None:
     if not normalized.isdigit():
         return None
     parsed = int(normalized)
-    # Real residential portable ACs are normally 5k–16k BTU. The guard avoids
-    # treating an unrelated number followed by BTU as a cooling rating.
-    if 5_000 <= parsed <= 16_000:
+    # Keep a wider range here so marketplace spiders can reject unrealistic
+    # products. Presentation filters remain based on the normal 5k–16k range.
+    if 2_000 <= parsed <= 20_000:
         return parsed
     return None
 
@@ -113,7 +116,7 @@ def extract_btu(title: str | None) -> tuple[int | None, int | None]:
     return min(values), max(values)
 
 
-def enrich_snapshot(snapshot: ListingSnapshot) -> ListingSnapshot:
+def enrich_snapshot(snapshot: "ListingSnapshot") -> "ListingSnapshot":
     """Fill missing brand/BTU fields from the listing title."""
     if snapshot.brand is None:
         snapshot.brand = extract_brand(snapshot.name)

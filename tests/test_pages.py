@@ -1,6 +1,7 @@
 """Tests for city landing page SEO behavior."""
 
 import os
+from datetime import datetime, timedelta, timezone
 
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ.setdefault("BASE_URL", "http://testserver")
@@ -12,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import get_db
-from app.models import Base
+from app.models import Base, Listing, Product, Retailer
 from app.routers import pages
 from app.seo import (
     build_breadcrumb_jsonld,
@@ -59,6 +60,42 @@ async def client(db_session):
         transport=transport, base_url="http://testserver"
     ) as client:
         yield client
+
+
+@pytest.mark.asyncio
+async def test_search_hides_listings_not_seen_for_48_hours(client, db_session):
+    now = datetime.now(timezone.utc)
+    retailer = Retailer(name="Amazon Germany", country="DE", domain="amazon.de")
+    product = Product(name="Midea 12,000 BTU Portable Air Conditioner", product_type="portable")
+    db_session.add_all([retailer, product])
+    await db_session.flush()
+    fresh = Listing(
+        product_id=product.id,
+        retailer_id=retailer.id,
+        sku="FRESH",
+        url="https://amazon.de/fresh",
+        country="DE",
+        stock_status="in_stock",
+        last_seen_at=now,
+    )
+    stale = Listing(
+        product_id=product.id,
+        retailer_id=retailer.id,
+        sku="STALE",
+        url="https://amazon.de/stale",
+        country="DE",
+        stock_status="in_stock",
+        last_seen_at=now - timedelta(hours=49),
+    )
+    db_session.add_all([fresh, stale])
+    await db_session.commit()
+
+    response = await client.get("/search?country=DE")
+
+    assert response.status_code == 200
+    assert "FRESH" not in response.text
+    assert "12,000 BTU Portable Air Conditioner" in response.text
+    assert response.text.count('href="/go/') == 1
 
 
 def test_get_city_info_known_city():
