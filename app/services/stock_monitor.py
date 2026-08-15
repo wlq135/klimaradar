@@ -3,8 +3,9 @@
 import json
 import logging
 from datetime import datetime, timezone
+from datetime import timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -29,13 +30,20 @@ async def upsert_listings(
     Returns:
         A counter dict with keys: created, updated, back_in_stock, price_dropped.
     """
-    stats = {"created": 0, "updated": 0, "back_in_stock": 0, "price_dropped": 0}
+    stats = {
+        "created": 0,
+        "updated": 0,
+        "back_in_stock": 0,
+        "price_dropped": 0,
+        "retired": 0,
+    }
     alert_events: list[tuple[str, int]] = []
 
     retailer = await session.get(Retailer, retailer_id)
     if not retailer:
         raise ValueError(f"Retailer {retailer_id} not found")
 
+    snapshot_skus = {snap.sku for snap in snapshots if snap.sku}
     for snap in snapshots:
         # Last line of defense: reject garbage snapshots (empty name or url,
         # or invalid stock status) so a malformed scrape never pollutes the DB
@@ -101,6 +109,23 @@ async def upsert_listings(
             stats["created"] += 1
         else:
             stats["updated"] += 1
+
+    # A successful non-empty scrape defines the retailer's current result set.
+    # retire older rows immediately instead of leaving rejected/removed products
+    # visible for another 48-hour freshness window.
+    if snapshot_skus:
+        stale_cutoff = datetime.now(timezone.utc) - timedelta(hours=49)
+        retired = await session.execute(
+            update(Listing)
+            .where(
+                Listing.retailer_id == retailer_id,
+                Listing.country == country,
+                Listing.sku.is_not(None),
+                Listing.sku.not_in(snapshot_skus),
+            )
+            .values(last_seen_at=stale_cutoff)
+        )
+        stats["retired"] = retired.rowcount or 0
 
     await session.commit()
 

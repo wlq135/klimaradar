@@ -1,6 +1,7 @@
 """Tests for snapshot validation in upsert_listings."""
 
 import os
+from datetime import datetime, timezone
 
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ.setdefault("BASE_URL", "http://testserver")
@@ -116,3 +117,48 @@ async def test_attributes_are_parsed_and_backfilled_without_duplicate_products(d
     assert products[0].btu_min == 12000
     assert products[0].btu_max == 12000
     assert listings[0].product_id == products[0].id
+
+
+@pytest.mark.asyncio
+async def test_successful_scrape_retires_missing_retailer_rows(db_session):
+    now = datetime.now(timezone.utc)
+    current = Product(name="Current Midea 12000 BTU AC", product_type="portable")
+    removed = Product(name="Removed Evaporative Cooler", product_type="portable")
+    db_session.add_all([current, removed])
+    await db_session.flush()
+    db_session.add_all(
+        [
+            Listing(
+                product_id=current.id,
+                retailer_id=db_session.retailer_id,
+                sku="CURRENT",
+                url="https://t.de/current",
+                country="DE",
+                stock_status="in_stock",
+                last_seen_at=now,
+            ),
+            Listing(
+                product_id=removed.id,
+                retailer_id=db_session.retailer_id,
+                sku="REMOVED",
+                url="https://t.de/removed",
+                country="DE",
+                stock_status="in_stock",
+                last_seen_at=now,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    snapshot = _snap(
+        name="Current Midea 12000 BTU AC",
+        url="https://t.de/current",
+        sku="CURRENT",
+    )
+    stats = await upsert_listings(db_session, db_session.retailer_id, "DE", [snapshot])
+
+    rows = {listing.sku: listing for listing in (await db_session.scalars(select(Listing)))}
+    assert stats["retired"] == 1
+    now_naive = now.replace(tzinfo=None)
+    assert rows["CURRENT"].last_seen_at.replace(tzinfo=None) > now_naive
+    assert rows["REMOVED"].last_seen_at.replace(tzinfo=None) < now_naive
