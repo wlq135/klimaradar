@@ -137,6 +137,7 @@ async def test_city_page_renders_localized_german(client):
     text = response.text
     assert '<html lang="de-DE"' in text
     assert "Mobile Klimaanlage auf Lager in Berlin" in text
+    assert 'href="/guides/de/portable-air-conditioner"' in text
     assert 'hreflang="de-DE"' in text
     assert 'hreflang="x-default"' in text
     assert '"@type": "BreadcrumbList"' in text
@@ -165,6 +166,18 @@ async def test_sitemap_contains_city_urls(client):
     assert "/de/berlin/portable-ac-in-stock" in text
     assert "/fr/paris/portable-ac-in-stock" in text
     assert text.count("portable-ac-in-stock") > 50
+
+
+@pytest.mark.asyncio
+async def test_indexnow_key_file(client):
+    from app.config import settings
+
+    response = await client.get(f"/indexnow-{settings.indexnow_key}.txt")
+
+    assert response.status_code == 200
+    assert response.text == settings.indexnow_key
+    invalid = await client.get("/indexnow-invalid-key.txt")
+    assert invalid.status_code == 404
 
 
 @pytest.mark.asyncio

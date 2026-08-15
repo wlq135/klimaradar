@@ -452,6 +452,18 @@ async def robots_txt():
     )
 
 
+@router.api_route(
+    "/indexnow-{key}.txt",
+    methods=["GET", "HEAD"],
+    response_class=PlainTextResponse,
+)
+async def indexnow_key_file(key: str):
+    """Serve the key file required to submit URLs through IndexNow."""
+    if not settings.indexnow_key or key != settings.indexnow_key:
+        raise HTTPException(status_code=404, detail="Not found")
+    return PlainTextResponse(settings.indexnow_key, media_type="text/plain")
+
+
 @router.api_route("/sitemap.xml", methods=["GET", "HEAD"])
 async def sitemap_xml():
     base = settings.base_url.rstrip("/")
@@ -728,6 +740,7 @@ async def city_seo_page(
     faq_jsonld = build_faq_jsonld(faq_content)
     other_cities = list_cities_for_country(country_code, limit=50, exclude_slug=city_info["slug"])
     listing_ui = _listing_ui(country_code)
+    country_guide = get_country_guide(country_code)
 
     return templates.TemplateResponse(
         request,
@@ -744,6 +757,7 @@ async def city_seo_page(
             popular_cities_title=seo_copy["popular_cities"],
             other_cities=other_cities,
             listing_ui=listing_ui,
+            country_guide=country_guide,
             breadcrumb_jsonld=json.dumps(breadcrumb_jsonld, ensure_ascii=False),
             faq_jsonld=json.dumps(faq_jsonld, ensure_ascii=False),
             faq_content=faq_content,

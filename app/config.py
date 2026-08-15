@@ -67,6 +67,10 @@ class Settings(BaseSettings):
     # meta tag here to inject <meta name="google-site-verification" content="...">.
     google_site_verification: str = ""
 
+    # IndexNow key used by participating search engines (Bing, Yandex, and
+    # others). The public key file is served at /indexnow-{key}.txt.
+    indexnow_key: str = "0ca6aab482edb0f186ec58eaf9bed7a0"
+
     # Playwright proxy (optional). Set PLAYWRIGHT_PROXY_SERVER to route traffic
     # through an HTTP proxy. Credentials are only required when the proxy needs
     # authentication (e.g. Bright Data, ScrapingBee residential proxies).
