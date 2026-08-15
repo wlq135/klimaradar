@@ -36,6 +36,9 @@ from app.seo import (
     build_article_jsonld,
     get_country_guide,
     list_country_guides,
+    build_comparison_article_jsonld,
+    get_btu_comparison,
+    list_btu_comparisons,
 )
 from app.services.affiliate import tag_url
 from app.services.paddle import list_checkout_domains
@@ -496,6 +499,8 @@ async def sitemap_xml():
         urls.append((f"{base}/{country}/{city}/portable-ac-in-stock", "0.7"))
     for guide in list_country_guides():
         urls.append((f"{base}{guide['path']}", "0.8"))
+    for comparison in list_btu_comparisons():
+        urls.append((f"{base}{comparison['path']}", "0.9"))
 
     lines = ['<?xml version="1.0" encoding="UTF-8"?>']
     lines.append('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
@@ -639,6 +644,7 @@ async def search(
     search_cities_title = "Other cities in " + COUNTRY_NAMES.get(country_upper, {}).get("en", country_upper)
     listing_ui = _listing_ui(country_upper)
     country_guide = get_country_guide(country_upper)
+    btu_comparison = get_btu_comparison(country_upper)
     if country_guide:
         search_cities_title = country_guide["cities_title"]
     faq_content = country_guide["faqs"] if country_guide else None
@@ -667,9 +673,101 @@ async def search(
             popular_cities_title=search_cities_title,
             listing_ui=listing_ui,
             country_guide=country_guide,
+            btu_comparison=btu_comparison,
             faq_title=country_guide["faq_title"] if country_guide else None,
             faq_content=faq_content,
             faq_jsonld=json.dumps(faq_jsonld, ensure_ascii=False) if faq_jsonld else None,
+        ),
+    )
+
+
+@router.api_route(
+    "/compare/{country}/12000-btu-portable-air-conditioner",
+    methods=["GET", "HEAD"],
+    response_class=HTMLResponse,
+)
+async def btu_comparison_page(
+    request: Request,
+    country: str,
+    session: AsyncSession = Depends(get_db),
+):
+    country_code = country.upper()
+    comparison = get_btu_comparison(country_code)
+    if comparison is None:
+        raise HTTPException(status_code=404, detail="Comparison not found")
+
+    filters = SearchFilters(
+        country=country_code,
+        product_type="portable",
+        min_btu=12_000,
+    )
+    listings, total = await _fetch_filtered_listings(session, filters, limit=24)
+    country_guide = get_country_guide(country_code)
+    listing_ui = _listing_ui(country_code)
+    other_cities = list_cities_for_country(country_code, limit=9)
+
+    base = settings.base_url.rstrip("/")
+    canonical_url = f"{base}{comparison['path']}"
+    hreflang_alternates = build_hreflang_alternates(
+        comparison["html_lang"], canonical_url, base
+    )
+    breadcrumb_jsonld = {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "KlimaRadar",
+                "item": f"{base}/",
+            },
+            {
+                "@type": "ListItem",
+                "position": 2,
+                "name": comparison["country_name"],
+                "item": f"{base}/search?country={country_code}",
+            },
+            {
+                "@type": "ListItem",
+                "position": 3,
+                "name": comparison["h1"],
+                "item": canonical_url,
+            },
+        ],
+    }
+    faq_jsonld = build_faq_jsonld(comparison["faqs"])
+    article_jsonld = build_comparison_article_jsonld(base, comparison)
+
+    return templates.TemplateResponse(
+        request,
+        "search.html",
+        _template_context(
+            request,
+            title=comparison["title"],
+            description=comparison["description"],
+            html_lang=comparison["html_lang"],
+            hreflang_alternates=hreflang_alternates,
+            canonical_url=canonical_url,
+            h1=comparison["h1"],
+            page_intro=comparison["lead"],
+            listings=listings,
+            filters=filters.model_dump(),
+            total=total,
+            current_page=1,
+            total_pages=1,
+            has_prev=False,
+            has_next=False,
+            other_cities=other_cities,
+            popular_cities_title=country_guide["cities_title"] if country_guide else "Popular cities",
+            listing_ui=listing_ui,
+            country_guide=country_guide,
+            comparison_sections=comparison["sections"],
+            breadcrumb_jsonld=json.dumps(breadcrumb_jsonld, ensure_ascii=False),
+            article_jsonld=json.dumps(article_jsonld, ensure_ascii=False),
+            faq_title=comparison["faq_title"],
+            faq_content=comparison["faqs"],
+            faq_jsonld=json.dumps(faq_jsonld, ensure_ascii=False),
+            seo_mode=True,
         ),
     )
 
@@ -694,6 +792,7 @@ async def country_buying_guide(request: Request, country: str):
     top_cities = list_cities_for_country(guide["country"], limit=9)
     other_guides = list_country_guides(exclude=guide["country"])
     listing_ui = _listing_ui(guide["country"])
+    btu_comparison = get_btu_comparison(guide["country"])
 
     return templates.TemplateResponse(
         request,
@@ -709,6 +808,7 @@ async def country_buying_guide(request: Request, country: str):
             top_cities=top_cities,
             other_guides=other_guides,
             listing_ui=listing_ui,
+            btu_comparison=btu_comparison,
             article_jsonld=json.dumps(article_jsonld, ensure_ascii=False),
             faq_jsonld=json.dumps(faq_jsonld, ensure_ascii=False),
         ),
@@ -754,6 +854,7 @@ async def city_seo_page(
     other_cities = list_cities_for_country(country_code, limit=50, exclude_slug=city_info["slug"])
     listing_ui = _listing_ui(country_code)
     country_guide = get_country_guide(country_code)
+    btu_comparison = get_btu_comparison(country_code)
 
     return templates.TemplateResponse(
         request,
@@ -771,6 +872,7 @@ async def city_seo_page(
             other_cities=other_cities,
             listing_ui=listing_ui,
             country_guide=country_guide,
+            btu_comparison=btu_comparison,
             breadcrumb_jsonld=json.dumps(breadcrumb_jsonld, ensure_ascii=False),
             faq_jsonld=json.dumps(faq_jsonld, ensure_ascii=False),
             faq_content=faq_content,

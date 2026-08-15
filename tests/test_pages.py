@@ -22,6 +22,8 @@ from app.seo import (
     get_seo_copy,
     get_sitemap_cities,
     guide_path,
+    comparison_path,
+    COMPARISON_COUNTRIES,
 )
 
 
@@ -251,6 +253,72 @@ async def test_country_buying_guides_render(client, country, html_lang, country_
     assert '"@type": "Article"' in text
     assert '"@type": "FAQPage"' in text
     assert "12,000 BTU" in text or "12.000 BTU" in text or "12 000 BTU" in text
+
+
+@pytest.mark.asyncio
+async def test_btu_comparison_page_renders_live_listing_and_seo(client, db_session):
+    now = datetime.now(timezone.utc)
+    retailer = Retailer(name="Amazon Germany", country="DE", domain="amazon.de")
+    product = Product(
+        name="Midea 12000 BTU Portable Air Conditioner",
+        product_type="portable",
+        btu_min=12000,
+        btu_max=12000,
+    )
+    db_session.add_all([retailer, product])
+    await db_session.flush()
+    db_session.add(
+        Listing(
+            product_id=product.id,
+            retailer_id=retailer.id,
+            sku="BTU12",
+            url="https://amazon.de/btu12",
+            country="DE",
+            stock_status="in_stock",
+            last_seen_at=now,
+        )
+    )
+    await db_session.commit()
+
+    response = await client.get(comparison_path("DE"))
+
+    assert response.status_code == 200
+    text = response.text
+    assert '<html lang="de-DE"' in text
+    assert "Mobile Klimaanlagen mit 12.000 BTU auf Lager in Deutschland" in text
+    from app.config import settings
+    expected_canonical = f'{settings.base_url.rstrip("/")}{comparison_path("DE")}'
+    assert f'rel="canonical" href="{expected_canonical}"' in text
+    assert 'value="12000"' in text
+    assert "Midea 12000 BTU Portable Air Conditioner" in text
+    assert 'href="/go/' in text
+    assert "Für welche Räume 12.000 BTU ausreichen" in text
+    assert "Häufige Fragen zu 12.000-BTU-Klimageräten" in text
+    assert '"@type": "Article"' in text
+    assert '"@type": "BreadcrumbList"' in text
+    assert '"@type": "FAQPage"' in text
+
+
+@pytest.mark.asyncio
+async def test_unknown_btu_comparison_returns_404(client):
+    response = await client.get("/compare/us/12000-btu-portable-air-conditioner")
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_search_guide_and_sitemap_link_btu_comparisons(client):
+    search = await client.get("/search?country=IT")
+    guide = await client.get(guide_path("FR"))
+    sitemap = await client.get("/sitemap.xml")
+
+    assert search.status_code == 200
+    assert guide.status_code == 200
+    assert sitemap.status_code == 200
+    assert 'href="/compare/it/12000-btu-portable-air-conditioner"' in search.text
+    assert 'href="/compare/fr/12000-btu-portable-air-conditioner"' in guide.text
+    for country in COMPARISON_COUNTRIES:
+        assert comparison_path(country) in sitemap.text
 
 
 @pytest.mark.asyncio

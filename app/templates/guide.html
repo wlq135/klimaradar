@@ -20,6 +20,11 @@
       <a href="/search?country={{ guide.country }}#alert" class="inline-flex items-center justify-center bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded-lg px-5 py-3">
         {{ listing_ui.create_alert_long }}
       </a>
+      {% if btu_comparison %}
+      <a href="{{ btu_comparison.path }}" class="inline-flex items-center justify-center bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg px-5 py-3">
+        {{ btu_comparison.card_title }} →
+      </a>
+      {% endif %}
     </div>
   </div>
 </section>

@@ -18,6 +18,15 @@
       <span class="text-sm font-semibold text-blue-700 whitespace-nowrap">{{ country_guide.read_guide }}</span>
     </a>
     {% endif %}
+    {% if btu_comparison %}
+    <a href="{{ btu_comparison.path }}" class="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-green-50 border border-green-100 rounded-xl p-4 hover:bg-green-100 transition">
+      <span>
+        <span class="block font-semibold text-green-700">{{ btu_comparison.card_title }}</span>
+        <span class="block text-sm text-slate-600">{{ btu_comparison.card_body }}</span>
+      </span>
+      <span class="text-sm font-semibold text-green-700 whitespace-nowrap">{{ btu_comparison.cta }} →</span>
+    </a>
+    {% endif %}
   </div>
 </section>
 
@@ -114,6 +123,54 @@
   </div>
 </section>
 
+{% if comparison_sections %}
+<article class="bg-white border-t border-slate-200 py-10">
+  <div class="max-w-4xl mx-auto px-4">
+    {% for section in comparison_sections %}
+    <section class="mb-8 last:mb-0">
+      <h2 class="text-2xl font-bold mb-4">{{ section.heading }}</h2>
+      {% for paragraph in section.paragraphs|default([]) %}
+      <p class="text-slate-600 leading-relaxed mb-4">{{ paragraph }}</p>
+      {% endfor %}
+      {% if section.table_rows %}
+      <div class="overflow-x-auto">
+        <p class="text-sm font-semibold text-slate-500 mb-2">{{ section.table_title }}</p>
+        <table class="min-w-full border-collapse text-sm">
+          <thead>
+            <tr class="bg-slate-100 text-left">
+              {% for header in section.table_headers %}
+              <th scope="col" class="px-4 py-3 font-semibold">{{ header }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200">
+            {% for row in section.table_rows %}
+            <tr>
+              {% for cell in row %}
+              <td class="px-4 py-3 text-slate-600">{{ cell }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+      {% if section.bullets %}
+      <ul class="grid gap-3 sm:grid-cols-2">
+        {% for bullet in section.bullets %}
+        <li class="flex gap-3 bg-slate-50 rounded-lg p-4">
+          <svg class="w-5 h-5 text-green-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+          <span class="text-slate-700 text-sm leading-relaxed">{{ bullet }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </section>
+    {% endfor %}
+  </div>
+</article>
+{% endif %}
+
 {% if other_cities %}
 <section class="bg-slate-50 border-t border-slate-200 py-8">
   <div class="max-w-6xl mx-auto px-4">
@@ -128,6 +185,12 @@
     </div>
   </div>
 </section>
+{% endif %}
+
+{% if article_jsonld %}
+<script type="application/ld+json">
+{{ article_jsonld|safe }}
+</script>
 {% endif %}
 
 {% if breadcrumb_jsonld %}

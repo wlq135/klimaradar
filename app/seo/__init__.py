@@ -24,6 +24,14 @@ from app.seo.guides import (
     guide_path,
     list_country_guides,
 )
+from app.seo.comparisons import (
+    COMPARISON_COUNTRIES,
+    COMPARISON_SLUG,
+    build_comparison_article_jsonld,
+    comparison_path,
+    get_btu_comparison,
+    list_btu_comparisons,
+)
 
 __all__ = [
     "CITY_METADATA",
@@ -46,4 +54,10 @@ __all__ = [
     "get_country_guide",
     "guide_path",
     "list_country_guides",
+    "COMPARISON_COUNTRIES",
+    "COMPARISON_SLUG",
+    "build_comparison_article_jsonld",
+    "comparison_path",
+    "get_btu_comparison",
+    "list_btu_comparisons",
 ]
