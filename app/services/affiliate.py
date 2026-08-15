@@ -16,6 +16,7 @@ _AFFILIATE_PARAMS = {
     "amazon.es": "tag",
     "amazon.nl": "tag",
     "amazon.be": "tag",
+    "amazon.com.be": "tag",
     "mediamarkt.de": "ref",
     "boulanger.com": "ref",
     "boulanger.fr": "ref",
@@ -33,6 +34,7 @@ _AMAZON_DOMAINS = {
     "amazon.es",
     "amazon.nl",
     "amazon.be",
+    "amazon.com.be",
 }
 
 
@@ -59,6 +61,7 @@ def _affiliate_tag_for(domain: str) -> str | None:
             "amazon.es": settings.amazon_es_affiliate_tag,
             "amazon.nl": settings.amazon_nl_affiliate_tag,
             "amazon.be": settings.amazon_be_affiliate_tag,
+            "amazon.com.be": settings.amazon_be_affiliate_tag,
         }
         return mapping.get(domain) or None
     if domain == "mediamarkt.de":

@@ -118,7 +118,9 @@ class BaseAmazonSpider(PlaywrightSpider):
         if any(word in lower for word in cls._ACCESSORY_WORDS):
             return False
         btu_min, btu_max = extract_btu(title)
-        if btu_min is not None and (btu_min < 5_000 or btu_max > 16_000):
+        if btu_min is None:
+            return False
+        if btu_min < 5_000 or btu_max > 16_000:
             return False
         return any(word in lower for word in cls._INCLUDE_TITLE_WORDS)
 

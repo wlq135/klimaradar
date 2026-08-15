@@ -6,6 +6,7 @@ import os
 # settings object is loaded with the test affiliate tags.
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["AMAZON_DE_AFFILIATE_TAG"] = "klrmrd-21"
+os.environ["AMAZON_BE_AFFILIATE_TAG"] = "klrmrd-be-21"
 os.environ["MEDIAMARKT_DE_AFFILIATE_TAG"] = "klrmrd"
 os.environ["BOULANGER_FR_AFFILIATE_TAG"] = "klrmrd"
 
@@ -113,6 +114,22 @@ async def test_go_redirect_tags_amazon_url_and_logs_click(client, db_session):
 
     click_count = await db_session.scalar(select(func.count(ClickEvent.id)))
     assert click_count == 1
+
+
+@pytest.mark.asyncio
+async def test_go_redirect_tags_amazon_belgium_marketplace_url(client, db_session):
+    listing = await _create_test_listing(
+        db_session,
+        retailer_name="Amazon Belgium",
+        domain="https://www.amazon.com.be",
+        url="https://www.amazon.com.be/dp/B08EXAMPLE",
+        country="BE",
+    )
+
+    response = await client.get(f"/go/{listing.id}", follow_redirects=False)
+
+    assert response.status_code in (307, 302)
+    assert "tag=klrmrd-be-21" in response.headers["location"]
 
 
 @pytest.mark.asyncio

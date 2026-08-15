@@ -47,7 +47,7 @@ async def seed_retailers(session: AsyncSession) -> None:
         Retailer(
             name="Amazon Belgium",
             country="BE",
-            domain="https://www.amazon.be",
+            domain="https://www.amazon.com.be",
             affiliate_network="amazon_associates",
         ),
         Retailer(

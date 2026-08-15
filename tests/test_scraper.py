@@ -90,9 +90,36 @@ def test_registry_includes_amazon_uk():
     assert not AmazonUkSpider._is_relevant_title(
         "12V Air Conditioner Under-Dash AC Kit for Classic Cars"
     )
+    assert not AmazonUkSpider._is_relevant_title(
+        "Portable Air Conditioner with Remote Control"
+    )
     assert AmazonUkSpider._is_relevant_title(
         "Portable Air Conditioner 10000 BTU with Remote Control"
     )
+
+
+@pytest.mark.asyncio
+async def test_amazon_be_spider_uses_marketplace_domain_and_queries():
+    class FakeContext:
+        def __init__(self):
+            self.cookies = []
+
+        async def add_cookies(self, cookies):
+            self.cookies.extend(cookies)
+
+    from app.spiders.amazon_be import AmazonBeSpider
+
+    spider = AmazonBeSpider(retailer_id=1, country="BE", affiliate_tag=None)
+    context = FakeContext()
+    await spider._pre_navigate(context)
+
+    assert spider.domain == "https://www.amazon.com.be"
+    assert spider.search_url_template == "https://www.amazon.com.be/s?k={query}"
+    assert "draagbare airconditioner" in spider.default_queries
+    assert "mobiele airconditioner" in spider.default_queries
+    assert "portable air conditioner" in spider.default_queries
+    assert spider._MIN_PRICE == 120.0
+    assert context.cookies[0]["domain"] == ".amazon.com.be"
 
 
 def test_amazon_de_filters_evaporative_coolers_without_exhaust_hose():

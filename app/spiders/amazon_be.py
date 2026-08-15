@@ -7,11 +7,19 @@ class AmazonBeSpider(BaseAmazonSpider):
     """Scrape Amazon.be search results for portable/split/window ACs."""
 
     name = "Amazon Belgium"
-    domain = "https://www.amazon.be"
-    search_url_template = "https://www.amazon.be/s?k={query}"
+    domain = "https://www.amazon.com.be"
+    search_url_template = "https://www.amazon.com.be/s?k={query}"
     default_query = "draagbare airconditioner"
+    default_queries = [
+        "draagbare airconditioner",
+        "mobiele airconditioner",
+        "portable air conditioner",
+    ]
     currency = "EUR"
     _LOCALE = "nl-BE"
+    # Belgium search results contain many toy evaporative coolers. A real
+    # compressor AC is comfortably above this level even in an ASD deal.
+    _MIN_PRICE = 120.0
 
     _INCLUDE_TITLE_WORDS = [
         "airconditioner",
