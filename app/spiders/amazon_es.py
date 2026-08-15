@@ -10,6 +10,11 @@ class AmazonEsSpider(BaseAmazonSpider):
     domain = "https://www.amazon.es"
     search_url_template = "https://www.amazon.es/s?k={query}"
     default_query = "aire acondicionado portátil"
+    default_queries = [
+        "aire acondicionado portátil",
+        "aire acondicionado portátil 9000 BTU",
+        "aire acondicionado portátil 12000 BTU",
+    ]
     currency = "EUR"
     _LOCALE = "es-ES"
 
@@ -25,14 +30,15 @@ class AmazonEsSpider(BaseAmazonSpider):
     ]
     _EXCLUDE_TITLE_WORDS = [
         "laptop",
-        "portátil",
-        "ordenador",
+        "ordenador portátil",
         "pc",
-        "refrigerador",
-        "ventilador",
-        "fan",
-        "humidificador",
-        "deshumidificador",
+        "cooling pad",
+        "climatizador evaporativo",
+        "enfriador de aire",
+        "refrigerador evaporativo",
+        "ventilador evaporativo",
+        "sin tubo",
+        "nebulización",
         "radiador",
         "calefactor",
         "heater",

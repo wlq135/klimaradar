@@ -98,6 +98,36 @@ def test_registry_includes_amazon_uk():
     )
 
 
+def test_amazon_spiders_use_high_intent_btu_queries():
+    from app.spiders.amazon_de import AmazonDeSpider
+    from app.spiders.amazon_es import AmazonEsSpider
+    from app.spiders.amazon_fr import AmazonFrSpider
+    from app.spiders.amazon_it import AmazonItSpider
+    from app.spiders.amazon_nl import AmazonNlSpider
+
+    expected = {
+        AmazonDeSpider: "mobiles klimagerät 12000 BTU",
+        AmazonFrSpider: "climatiseur mobile 9000 BTU",
+        AmazonItSpider: "climatizzatore portatile 12000 BTU",
+        AmazonEsSpider: "aire acondicionado portátil 9000 BTU",
+        AmazonNlSpider: "airconditioner 9000 BTU",
+    }
+
+    for spider, query in expected.items():
+        assert query in spider.default_queries
+
+
+def test_amazon_es_keeps_real_portable_acs_with_fan_mode():
+    from app.spiders.amazon_es import AmazonEsSpider
+
+    assert AmazonEsSpider._is_relevant_title(
+        "Aire Acondicionado Portátil 9000 BTU con Ventilador y Deshumidificador"
+    )
+    assert not AmazonEsSpider._is_relevant_title(
+        "Aire Acondicionado Portátil 9000 BTU, Climatizador Evaporativo con Nebulización"
+    )
+
+
 @pytest.mark.asyncio
 async def test_amazon_be_spider_uses_marketplace_domain_and_queries():
     class FakeContext:

@@ -10,6 +10,12 @@ class AmazonNlSpider(BaseAmazonSpider):
     domain = "https://www.amazon.nl"
     search_url_template = "https://www.amazon.nl/s?k={query}"
     default_query = "draagbare airconditioner"
+    default_queries = [
+        "draagbare airconditioner",
+        "mobiele airconditioner",
+        "airconditioner 9000 BTU",
+        "airconditioner 12000 BTU",
+    ]
     currency = "EUR"
     _LOCALE = "nl-NL"
 

@@ -10,6 +10,11 @@ class AmazonItSpider(BaseAmazonSpider):
     domain = "https://www.amazon.it"
     search_url_template = "https://www.amazon.it/s?k={query}"
     default_query = "condizionatore portatile"
+    default_queries = [
+        "climatizzatore portatile",
+        "climatizzatore portatile 9000 BTU",
+        "climatizzatore portatile 12000 BTU",
+    ]
     currency = "EUR"
     _LOCALE = "it-IT"
 

@@ -10,6 +10,11 @@ class AmazonFrSpider(BaseAmazonSpider):
     domain = "https://www.amazon.fr"
     search_url_template = "https://www.amazon.fr/s?k={query}"
     default_query = "climatiseur portable"
+    default_queries = [
+        "climatiseur mobile",
+        "climatiseur mobile 9000 BTU",
+        "climatiseur mobile 12000 BTU",
+    ]
     currency = "EUR"
     _LOCALE = "fr-FR"
 

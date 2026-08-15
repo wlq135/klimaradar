@@ -10,6 +10,11 @@ class AmazonDeSpider(BaseAmazonSpider):
     domain = "https://www.amazon.de"
     search_url_template = "https://www.amazon.de/s?k={query}"
     default_query = "mobiles klimagerät"
+    default_queries = [
+        "mobiles klimagerät",
+        "mobiles klimagerät 9000 BTU",
+        "mobiles klimagerät 12000 BTU",
+    ]
     currency = "EUR"
     _LOCALE = "de-DE"
 
