@@ -21,7 +21,6 @@ from app.models import ClickEvent, Listing, Product, Retailer
 from app.rate_limit import admin_scrape_limiter
 from app.schemas import SearchFilters, StatsOut
 from app.seo import (
-    CITY_METADATA,
     COUNTRY_NAMES,
     COUNTRY_LANGUAGES,
     build_breadcrumb_jsonld,
@@ -32,6 +31,7 @@ from app.seo import (
     get_city_info,
     get_seo_copy,
     get_sitemap_cities,
+    is_primary_city,
     list_cities_for_country,
     build_article_jsonld,
     get_country_guide,
@@ -391,7 +391,7 @@ async def index(request: Request, session: AsyncSession = Depends(get_db)):
     country_order = ["DE", "FR", "IT", "ES", "NL", "BE", "GB"]
     popular_searches = []
     for code in country_order:
-        cities = [c for c in CITY_METADATA if c["country"] == code]
+        cities = list_cities_for_country(code, limit=50)
         if not cities:
             continue
         guide = get_country_guide(code)
@@ -722,6 +722,11 @@ async def city_seo_page(
     city_info = get_city_info(country_code, city)
     if city_info is None:
         raise HTTPException(status_code=404, detail="City not found")
+    if not is_primary_city(country_code, city_info["slug"]):
+        return RedirectResponse(
+            url=f"/search?country={country_code}",
+            status_code=301,
+        )
 
     filters = SearchFilters(
         country=country_code,

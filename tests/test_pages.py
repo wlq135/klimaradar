@@ -110,8 +110,9 @@ def test_get_sitemap_cities_covers_both_countries():
     cities = get_sitemap_cities()
     assert ("de", "berlin") in cities
     assert ("fr", "paris") in cities
-    assert len([c for c, _ in cities if c == "de"]) > 10
-    assert len([c for c, _ in cities if c == "fr"]) > 10
+    assert len([c for c, _ in cities if c == "de"]) == 8
+    assert len([c for c, _ in cities if c == "fr"]) == 7
+    assert ("be", "kortrijk") not in cities
 
 
 @pytest.mark.asyncio
@@ -159,13 +160,22 @@ async def test_unknown_city_returns_404(client):
 
 
 @pytest.mark.asyncio
+async def test_secondary_city_redirects_to_country_page(client):
+    response = await client.get("/de/dortmund/portable-ac-in-stock")
+
+    assert response.status_code == 301
+    assert response.headers["location"] == "/search?country=DE"
+
+
+@pytest.mark.asyncio
 async def test_sitemap_contains_city_urls(client):
     response = await client.get("/sitemap.xml")
     assert response.status_code == 200
     text = response.text
     assert "/de/berlin/portable-ac-in-stock" in text
     assert "/fr/paris/portable-ac-in-stock" in text
-    assert text.count("portable-ac-in-stock") > 50
+    assert text.count("portable-ac-in-stock") == 44
+    assert "/be/kortrijk/portable-ac-in-stock" not in text
 
 
 @pytest.mark.asyncio
@@ -249,6 +259,8 @@ async def test_homepage_has_structured_data(client):
     assert "Climatiseur mobile à Paris" in text
     assert "Portable AC in London" in text
     assert "United Kingdom" in text
+    assert "Portable AC in Birmingham" in text
+    assert "Portable AC in Sheffield" not in text
 
 
 def test_freshness_labels_recent_and_stale():

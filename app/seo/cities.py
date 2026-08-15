@@ -22,6 +22,19 @@ COUNTRY_NAMES = {
     "GB": {"en": "United Kingdom", "de": "Vereinigtes Königreich", "fr": "Royaume-Uni"},
 }
 
+# Keep only the strongest city pages indexable. The remaining city URLs are
+# still recognized, but they redirect to the country page to consolidate
+# crawl budget and avoid large groups of near-duplicate thin pages.
+SEO_CITY_LIMITS = {
+    "DE": 8,
+    "FR": 7,
+    "IT": 6,
+    "ES": 6,
+    "NL": 6,
+    "BE": 5,
+    "GB": 6,
+}
+
 # fmt: off
 CITY_METADATA: list[dict] = [
     # Germany
@@ -319,14 +332,23 @@ def get_city_info(country: str, slug: str) -> dict | None:
 def list_cities_for_country(
     country: str, *, limit: int = 10, exclude_slug: str | None = None
 ) -> list[dict]:
-    """Return up to ``limit`` cities for a country, optionally excluding one slug."""
+    """Return up to ``limit`` primary cities for a country.
+
+    Primary cities are the first cities listed for each country in
+    ``CITY_METADATA``. Keeping this set deliberately small prevents the public
+    archive from generating dozens of near-duplicate pages with little unique
+    content.
+    """
     country_key = country.upper()
     excluded = exclude_slug.lower() if exclude_slug else None
-    return [
-        city
-        for city in CITY_METADATA
-        if city["country"] == country_key and city["slug"] != excluded
-    ][:limit]
+    selected: list[dict] = []
+    for city in CITY_METADATA:
+        if city["country"] != country_key or city["slug"] == excluded:
+            continue
+        if len(selected) >= SEO_CITY_LIMITS.get(country_key, 10):
+            break
+        selected.append(city)
+    return selected[:limit]
 
 
 def get_seo_copy(country: str, city_info: dict) -> dict[str, str]:
@@ -342,8 +364,25 @@ def get_seo_copy(country: str, city_info: dict) -> dict[str, str]:
 
 
 def get_sitemap_cities() -> list[tuple[str, str]]:
-    """Return (country_lower, city_slug) tuples for every supported city."""
-    return sorted((city["country"].lower(), city["slug"]) for city in CITY_METADATA)
+    """Return (country_lower, city_slug) tuples for indexable primary cities."""
+    countries = sorted({city["country"] for city in CITY_METADATA})
+    return sorted(
+        (city["country"].lower(), city["slug"])
+        for country in countries
+        for city in list_cities_for_country(country, limit=SEO_CITY_LIMITS[country])
+    )
+
+
+def is_primary_city(country: str, slug: str) -> bool:
+    """Return whether a city URL should remain indexable."""
+    country_key = country.upper()
+    slug_key = slug.lower()
+    return any(
+        city["slug"] == slug_key
+        for city in list_cities_for_country(
+            country_key, limit=SEO_CITY_LIMITS.get(country_key, 10)
+        )
+    )
 
 
 def build_hreflang_alternates(
