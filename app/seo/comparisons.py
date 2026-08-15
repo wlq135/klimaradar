@@ -83,7 +83,7 @@ _LANGUAGE_TEMPLATES = {
                 "heading": "Quelle surface pour 12000 BTU ?",
                 "paragraphs": [
                     "Les modèles 12000 BTU conviennent généralement aux pièces moyennes à grandes. Avec une forte exposition au soleil ou une mauvaise isolation, choisissez plutôt une classe supérieure.",
-                    "La tuyau d'évacuation doit impérativement sortir vers l'extérieur. Un appareil sans évacuation d'air chaud ne rafraîchit pas comme un climatiseur à compresseur.",
+                    "Le tuyau d'évacuation doit impérativement sortir vers l'extérieur. Un appareil sans évacuation d'air chaud ne rafraîchit pas comme un climatiseur à compresseur.",
                 ],
                 "table_title": "Repères de puissance",
                 "table_headers": ["Surface", "Puissance conseillée", "Remarque"],
