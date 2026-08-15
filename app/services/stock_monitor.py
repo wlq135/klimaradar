@@ -12,6 +12,7 @@ from app.database import AsyncSessionLocal
 from app.models import Listing, PriceHistory, Product, Retailer
 from app.services.affiliate import tag_url
 from app.services.alerter import notify_subscribers_for_listing
+from app.services.product_attributes import enrich_snapshot
 from app.spiders.base import ListingSnapshot
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,7 @@ async def upsert_listings(
         }:
             logger.warning("Skipping snapshot with invalid stock_status=%r", snap.stock_status)
             continue
+        enrich_snapshot(snap)
         product = await _get_or_create_product(session, snap)
         listing, is_new = await _get_or_create_listing(
             session, retailer_id, product.id, snap, country
@@ -130,14 +132,25 @@ async def upsert_listings(
 async def _get_or_create_product(
     session: AsyncSession, snap: ListingSnapshot
 ) -> Product:
-    # Try to match by name + brand + product type to avoid duplicates.
+    # Match by name + product type. Older Amazon products may have null brand
+    # and BTU fields, so an exact-name match is also used to backfill them
+    # instead of creating duplicate canonical products.
     stmt = select(Product).where(
         Product.name == snap.name,
-        Product.brand == snap.brand,
         Product.product_type == snap.product_type,
     )
     product = await session.scalar(stmt)
     if product:
+        if snap.brand:
+            product.brand = snap.brand
+        if snap.btu_min is not None:
+            product.btu_min = snap.btu_min
+        if snap.btu_max is not None:
+            product.btu_max = snap.btu_max
+        if snap.image_url:
+            product.image_url = snap.image_url
+        session.add(product)
+        await session.flush()
         return product
 
     product = Product(

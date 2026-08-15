@@ -322,6 +322,14 @@ def _template_context(request: Request, **extra) -> dict:
     return extra
 
 
+def _btu_label(btu_min: int | None, btu_max: int | None) -> str | None:
+    if btu_min is None and btu_max is None:
+        return None
+    if btu_min is not None and btu_max is not None and btu_min != btu_max:
+        return f"{btu_min:,}–{btu_max:,}"
+    return f"{(btu_min if btu_min is not None else btu_max):,}"
+
+
 def _hash_ip(ip: str | None) -> str | None:
     if not ip:
         return None
@@ -981,6 +989,7 @@ async def _fetch_filtered_listings(
                 "country": listing.country,
                 "btu_min": product.btu_min,
                 "btu_max": product.btu_max,
+                "btu_label": _btu_label(product.btu_min, product.btu_max),
                 "affiliate_url": f"/go/{listing.id}",
                 "freshness_label": _freshness(listing.last_seen_at, listing.country)[0],
                 "stale": _freshness(listing.last_seen_at, listing.country)[1],

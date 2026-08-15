@@ -91,3 +91,28 @@ async def test_mixed_batch_keeps_only_valid(db_session):
     listings = (await db_session.scalars(select(Listing))).all()
     assert len(listings) == 2
 
+
+@pytest.mark.asyncio
+async def test_attributes_are_parsed_and_backfilled_without_duplicate_products(db_session):
+    name = "Midea 12,000 BTU Portable Air Conditioner"
+    legacy = Product(name=name, brand=None, product_type="portable")
+    db_session.add(legacy)
+    await db_session.flush()
+
+    snapshot = _snap(
+        name=name,
+        url="https://t.de/p/asin",
+        sku="ASIN1",
+    )
+
+    stats = await upsert_listings(db_session, db_session.retailer_id, "DE", [snapshot])
+
+    products = (await db_session.scalars(select(Product))).all()
+    listings = (await db_session.scalars(select(Listing))).all()
+    assert stats["created"] == 1
+    assert len(products) == 1
+    assert len(listings) == 1
+    assert products[0].brand == "Midea"
+    assert products[0].btu_min == 12000
+    assert products[0].btu_max == 12000
+    assert listings[0].product_id == products[0].id
