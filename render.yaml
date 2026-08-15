@@ -11,6 +11,8 @@ services:
         value: https://klima-radar.com
       - key: DEBUG
         value: "false"
+      - key: SCRAPER_INTERVAL_MINUTES
+        value: "10"
       - key: SENDGRID_API_KEY
         sync: false
       - key: FROM_EMAIL

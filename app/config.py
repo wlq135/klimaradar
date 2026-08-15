@@ -101,7 +101,7 @@ class Settings(BaseSettings):
     creem_product_id: str = ""
     creem_api_base: str = "https://api.creem.io/v1"
 
-    scraper_interval_minutes: int = 60
+    scraper_interval_minutes: int = 10
     request_timeout_seconds: int = 30
     user_agent: str = (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"

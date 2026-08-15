@@ -2,10 +2,12 @@
 
 from datetime import datetime, timezone
 
+from app.config import settings
 from app.scheduler import create_scheduler
 
 
 def test_scraper_runs_soon_after_startup():
+    assert settings.scraper_interval_minutes == 10
     scheduler = create_scheduler()
     job = scheduler.get_job("ac_scrape")
 
