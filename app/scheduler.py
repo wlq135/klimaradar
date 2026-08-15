@@ -116,6 +116,7 @@ def create_scheduler() -> AsyncIOScheduler:
         _scheduled_scrape,
         "interval",
         minutes=settings.scraper_interval_minutes,
+        next_run_time=datetime.now(timezone.utc) + timedelta(seconds=30),
         id="ac_scrape",
         replace_existing=True,
     )
