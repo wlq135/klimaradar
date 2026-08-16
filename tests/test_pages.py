@@ -10,10 +10,11 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
 from app.database import get_db
-from app.models import Base, Listing, Product, Retailer
+from app.models import Base, ClickEvent, Listing, Product, Retailer
 from app.routers import pages
 from app.seo import (
     build_breadcrumb_jsonld,
@@ -110,6 +111,164 @@ def test_get_city_info_known_city():
 def test_get_city_info_unknown_city():
     assert get_city_info("DE", "notacity") is None
 
+
+@pytest.mark.asyncio
+async def test_country_page_promotes_cheapest_fresh_in_stock_deals(
+    client, db_session, monkeypatch
+):
+    now = datetime.now(timezone.utc)
+    amazon = Retailer(name="Amazon Germany", country="DE", domain="amazon.de")
+    local_shop = Retailer(name="LocalShop", country="DE", domain="localshop.de")
+    cheap = Product(name="Cheap Fresh AC", product_type="portable", btu_min=9000, btu_max=9000)
+    mid = Product(name="Mid Fresh AC", product_type="portable", btu_min=12000, btu_max=12000)
+    unavailable = Product(name="Unavailable AC", product_type="portable")
+    stale = Product(name="Stale AC", product_type="portable")
+    db_session.add_all([amazon, local_shop, cheap, mid, unavailable, stale])
+    await db_session.flush()
+
+    cheap_listing = Listing(
+        product_id=cheap.id,
+        retailer_id=amazon.id,
+        sku="CHEAP",
+        url="https://amazon.de/cheap",
+        price=299,
+        currency="EUR",
+        country="DE",
+        stock_status="in_stock",
+        last_seen_at=now,
+    )
+    mid_listing = Listing(
+        product_id=mid.id,
+        retailer_id=local_shop.id,
+        sku="MID",
+        url="https://localshop.de/mid",
+        price=349,
+        currency="EUR",
+        country="DE",
+        stock_status="in_stock",
+        last_seen_at=now,
+    )
+    db_session.add_all(
+        [
+            cheap_listing,
+            mid_listing,
+            Listing(
+                product_id=unavailable.id,
+                retailer_id=amazon.id,
+                sku="OUT",
+                url="https://amazon.de/out",
+                price=199,
+                currency="EUR",
+                country="DE",
+                stock_status="out_of_stock",
+                last_seen_at=now,
+            ),
+            Listing(
+                product_id=stale.id,
+                retailer_id=amazon.id,
+                sku="OLD",
+                url="https://amazon.de/old",
+                price=149,
+                currency="EUR",
+                country="DE",
+                stock_status="in_stock",
+                last_seen_at=now - timedelta(hours=49),
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get("/search?country=DE")
+
+    assert response.status_code == 200
+    text = response.text
+    assert "Top-Angebote jetzt auf Lager" in text
+    assert "Stale AC" not in text
+    assert text.index("Cheap Fresh AC") < text.index("Mid Fresh AC")
+    assert text.count("source=country_top3") == 2
+    assert f'href="/go/{cheap_listing.id}?source=country_top3"' in text
+    assert f'href="/go/{mid_listing.id}?source=country_top3"' in text
+    assert f'href="/go/{cheap_listing.id}?source=country_listing"' in text
+
+    redirect = await client.get(
+        f"/go/{cheap_listing.id}?source=country_top3",
+        headers={"User-Agent": "pytest"},
+    )
+    assert redirect.status_code == 307
+    events = (await db_session.execute(select(ClickEvent))).scalars().all()
+    assert len(events) == 1
+    assert events[0].listing_id == cheap_listing.id
+    assert events[0].source == "country_top3"
+
+    monkeypatch.setattr(pages.settings, "admin_api_key", "test-admin-key")
+    pages.admin_scrape_limiter._store.clear()
+    analytics = await client.get(
+        "/api/admin/click-analytics?days=7",
+        headers={"X-Admin-API-Key": "test-admin-key"},
+    )
+    assert analytics.status_code == 200
+    payload = analytics.json()
+    assert payload["total_clicks"] == 1
+    assert payload["by_country"] == {"DE": 1}
+    assert payload["by_source"] == {"country_top3": 1}
+    assert payload["rows"][0]["product"] == "Cheap Fresh AC"
+    assert payload["rows"][0]["retailer"] == "Amazon Germany"
+
+
+@pytest.mark.asyncio
+async def test_comparison_page_promotes_12000_btu_deals(client, db_session):
+    now = datetime.now(timezone.utc)
+    retailer = Retailer(name="Amazon Germany", country="DE", domain="amazon.de")
+    suitable = Product(
+        name="Suitable 12000 AC",
+        product_type="portable",
+        btu_min=12000,
+        btu_max=12000,
+    )
+    too_small = Product(
+        name="Too Small AC",
+        product_type="portable",
+        btu_min=8000,
+        btu_max=8000,
+    )
+    db_session.add_all([retailer, suitable, too_small])
+    await db_session.flush()
+
+    suitable_listing = Listing(
+        product_id=suitable.id,
+        retailer_id=retailer.id,
+        sku="SUIT",
+        url="https://amazon.de/suitable",
+        price=399,
+        currency="EUR",
+        country="DE",
+        stock_status="in_stock",
+        last_seen_at=now,
+    )
+    db_session.add_all(
+        [
+            suitable_listing,
+            Listing(
+                product_id=too_small.id,
+                retailer_id=retailer.id,
+                sku="SMALL",
+                url="https://amazon.de/small",
+                price=249,
+                currency="EUR",
+                country="DE",
+                stock_status="in_stock",
+                last_seen_at=now,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get(comparison_path("DE"))
+
+    assert response.status_code == 200
+    assert "Suitable 12000 AC" in response.text
+    assert "Too Small AC" not in response.text
+    assert f'href="/go/{suitable_listing.id}?source=compare_top3"' in response.text
 
 def test_get_seo_copy_german():
     info = get_city_info("DE", "berlin")

@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import secrets
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 
@@ -279,10 +280,45 @@ _LISTING_UI_COPY = {
     },
 }
 
+_TOP_DEALS_UI_COPY = {
+    "de": {
+        "top_deals_title": "Top-Angebote jetzt auf Lager",
+        "best_price_now": "Bestpreis jetzt",
+        "view_deal": "Angebot ansehen",
+    },
+    "fr": {
+        "top_deals_title": "Top offres en stock maintenant",
+        "best_price_now": "Meilleur prix maintenant",
+        "view_deal": "Voir l'offre",
+    },
+    "it": {
+        "top_deals_title": "Migliori offerte disponibili ora",
+        "best_price_now": "Miglior prezzo ora",
+        "view_deal": "Vedi offerta",
+    },
+    "es": {
+        "top_deals_title": "Mejores ofertas disponibles ahora",
+        "best_price_now": "Mejor precio ahora",
+        "view_deal": "Ver oferta",
+    },
+    "nl": {
+        "top_deals_title": "Topaanbiedingen nu op voorraad",
+        "best_price_now": "Beste prijs nu",
+        "view_deal": "Aanbieding bekijken",
+    },
+    "en": {
+        "top_deals_title": "Top in-stock deals right now",
+        "best_price_now": "Best price now",
+        "view_deal": "View deal",
+    },
+}
+
 
 def _listing_ui(country: str) -> dict:
     language = COUNTRY_LANGUAGES.get(country.upper(), "en")[:2]
-    return _LISTING_UI_COPY.get(language, _LISTING_UI_COPY["en"])
+    return _LISTING_UI_COPY.get(language, _LISTING_UI_COPY["en"]) | _TOP_DEALS_UI_COPY.get(
+        language, _TOP_DEALS_UI_COPY["en"]
+    )
 
 
 
@@ -651,6 +687,15 @@ async def search(
         search_cities_title = country_guide["cities_title"]
     faq_content = country_guide["faqs"] if country_guide else None
     faq_jsonld = build_faq_jsonld(faq_content) if country_guide else None
+    top_deals = (
+        []
+        if has_filter_params
+        else await _fetch_top_deals(session, country_upper, limit=3)
+    )
+    top_deals_ui = _listing_ui(country_upper)
+    if country_upper in {"IT", "ES", "BE"}:
+        top_deals_ui = top_deals_ui | _TOP_DEALS_UI_COPY["en"]
+    listing_source = "city_listing" if city else "country_listing"
     return templates.TemplateResponse(
         request,
         "search.html",
@@ -664,6 +709,10 @@ async def search(
             h1=search_h1,
             page_intro=description,
             listings=listings,
+            top_deals=top_deals,
+            top_deals_ui=top_deals_ui,
+            top_deal_source="country_top3",
+            listing_source=listing_source,
             filters=filters.model_dump(),
             total=total,
             noindex=noindex,
@@ -705,6 +754,7 @@ async def btu_comparison_page(
     )
     listings, total = await _fetch_filtered_listings(session, filters, limit=24)
     country_guide = get_country_guide(country_code)
+    top_deals = await _fetch_top_deals(session, country_code, limit=3, min_btu=12_000)
     listing_ui = _listing_ui(country_code)
     other_cities = list_cities_for_country(country_code, limit=9)
 
@@ -753,6 +803,9 @@ async def btu_comparison_page(
             h1=comparison["h1"],
             page_intro=comparison["lead"],
             listings=listings,
+            top_deals=top_deals,
+            top_deal_source="compare_top3",
+            listing_source="compare_listing",
             filters=filters.model_dump(),
             total=total,
             current_page=1,
@@ -879,11 +932,29 @@ async def city_seo_page(
             faq_jsonld=json.dumps(faq_jsonld, ensure_ascii=False),
             faq_content=faq_content,
             listings=listings,
+            listing_source="city_listing",
             filters=filters.model_dump(),
             total=len(listings),
             seo_mode=True,
         ),
     )
+
+
+_ALLOWED_CLICK_SOURCES = {
+    "country_top3",
+    "country_listing",
+    "city_listing",
+    "compare_top3",
+    "compare_listing",
+}
+
+
+def _normalized_click_source(request: Request) -> str | None:
+    """Keep outbound-source values stable and bounded for analytics."""
+    source = request.query_params.get("source")
+    if source not in _ALLOWED_CLICK_SOURCES:
+        return None
+    return source
 
 
 @router.get("/go/{listing_id}")
@@ -904,7 +975,7 @@ async def affiliate_redirect(
 
     click = ClickEvent(
         listing_id=listing.id,
-        source=request.query_params.get("source"),
+        source=_normalized_click_source(request),
         user_agent=request.headers.get("user-agent"),
         ip_hash=_hash_ip(_client_ip(request)),
     )
@@ -1000,8 +1071,84 @@ async def paddle_checkout_domains(
     return {"environment": settings.paddle_environment, "domains": domains}
 
 
+
+@router.get("/api/admin/click-analytics")
+async def click_analytics(
+    request: Request,
+    days: int = Query(30, ge=1, le=90),
+    x_admin_api_key: str | None = Header(None, alias="X-Admin-API-Key"),
+    session: AsyncSession = Depends(get_db),
+):
+    """Summarize outbound clicks by country, source, product and retailer."""
+    await admin_scrape_limiter.check(_client_ip(request))
+    if not settings.admin_api_key:
+        raise HTTPException(
+            status_code=503, detail="Admin endpoint is not configured"
+        )
+    if not x_admin_api_key or not secrets.compare_digest(
+        x_admin_api_key, settings.admin_api_key
+    ):
+        raise HTTPException(status_code=403, detail="Invalid admin API key")
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    total_stmt = select(func.count(ClickEvent.id)).where(ClickEvent.clicked_at >= cutoff)
+    total = await session.scalar(total_stmt) or 0
+
+    stmt = (
+        select(
+            ClickEvent.source,
+            Listing.country,
+            Product.name.label("product_name"),
+            Retailer.name.label("retailer_name"),
+            Retailer.domain.label("retailer_domain"),
+            func.count(ClickEvent.id).label("clicks"),
+        )
+        .join(Listing, ClickEvent.listing_id == Listing.id)
+        .join(Product, Listing.product_id == Product.id)
+        .join(Retailer, Listing.retailer_id == Retailer.id)
+        .where(ClickEvent.clicked_at >= cutoff)
+        .group_by(
+            ClickEvent.source,
+            Listing.country,
+            Product.id,
+            Product.name,
+            Retailer.id,
+            Retailer.name,
+            Retailer.domain,
+        )
+        .order_by(func.count(ClickEvent.id).desc())
+    )
+    grouped = (await session.execute(stmt)).mappings().all()
+    rows = [
+        {
+            "source": row.source or "legacy",
+            "country": row.country,
+            "product": row.product_name,
+            "retailer": row.retailer_name,
+            "retailer_domain": row.retailer_domain,
+            "clicks": row.clicks,
+        }
+        for row in grouped
+    ]
+    by_country = Counter()
+    by_source = Counter()
+    for row in rows:
+        by_country[row["country"]] += row["clicks"]
+        by_source[row["source"]] += row["clicks"]
+
+    return {
+        "days": days,
+        "total_clicks": total,
+        "by_country": dict(by_country),
+        "by_source": dict(by_source),
+        "rows": rows,
+    }
+
+
 async def _get_stats(session: AsyncSession) -> StatsOut:
     total = await session.scalar(select(func.count(Listing.id)))
+
+
     # Count only listings verified in the last 48h so the
     # headline "In stock now" number reflects real availability, not stale
     # data that may already be gone from the retailer.
@@ -1028,6 +1175,63 @@ async def _get_stats(session: AsyncSession) -> StatsOut:
         active_subscriptions=active_subs or 0,
         countries=[c for c in countries if c],
     )
+
+def _listing_row(listing: Listing, product: Product, retailer: Retailer) -> dict:
+    """Serialize one retailer offer for templates and structured data."""
+    return {
+        "id": listing.id,
+        "name": product.name,
+        "brand": product.brand,
+        "price": listing.price,
+        "currency": listing.currency,
+        "stock_status": listing.stock_status,
+        "delivery_days": listing.delivery_days,
+        "image_url": product.image_url,
+        "retailer": retailer.name,
+        "retailer_domain": retailer.domain,
+        "is_amazon": retailer.domain.lower().startswith("amazon."),
+        "country": listing.country,
+        "btu_min": product.btu_min,
+        "btu_max": product.btu_max,
+        "btu_label": _btu_label(product.btu_min, product.btu_max),
+        "affiliate_url": f"/go/{listing.id}",
+        "freshness_label": _freshness(listing.last_seen_at, listing.country)[0],
+        "stale": _freshness(listing.last_seen_at, listing.country)[1],
+    }
+
+
+async def _fetch_top_deals(
+    session: AsyncSession,
+    country: str,
+    *,
+    limit: int = 3,
+    min_btu: int | None = None,
+) -> list[dict]:
+    """Return the cheapest fresh, in-stock portable AC offers for a market."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
+    stmt = (
+        select(Listing, Product, Retailer)
+        .join(Product, Listing.product_id == Product.id)
+        .join(Retailer, Listing.retailer_id == Retailer.id)
+        .where(Listing.country == country.upper())
+        .where(Listing.stock_status == "in_stock")
+        .where(Listing.price.is_not(None))
+        .where(Listing.last_seen_at >= cutoff)
+        .where(Product.product_type == "portable")
+    )
+    if min_btu:
+        stmt = stmt.where(Product.btu_max >= min_btu)
+    stmt = stmt.order_by(
+        Listing.price.asc().nullslast(),
+        Retailer.domain.ilike("amazon.%").desc(),
+        Listing.last_seen_at.desc().nullslast(),
+    )
+    stmt = stmt.limit(limit)
+    result = await session.execute(stmt)
+    return [
+        _listing_row(listing, product, retailer)
+        for listing, product, retailer in result.unique().all()
+    ]
 
 
 async def _fetch_filtered_listings(
@@ -1082,24 +1286,5 @@ async def _fetch_filtered_listings(
     result = await session.execute(stmt)
     rows = []
     for listing, product, retailer in result.unique().all():
-        rows.append(
-            {
-                "id": listing.id,
-                "name": product.name,
-                "brand": product.brand,
-                "price": listing.price,
-                "currency": listing.currency,
-                "stock_status": listing.stock_status,
-                "delivery_days": listing.delivery_days,
-                "image_url": product.image_url,
-                "retailer": retailer.name,
-                "country": listing.country,
-                "btu_min": product.btu_min,
-                "btu_max": product.btu_max,
-                "btu_label": _btu_label(product.btu_min, product.btu_max),
-                "affiliate_url": f"/go/{listing.id}",
-                "freshness_label": _freshness(listing.last_seen_at, listing.country)[0],
-                "stale": _freshness(listing.last_seen_at, listing.country)[1],
-            }
-        )
+        rows.append(_listing_row(listing, product, retailer))
     return rows, total_count
