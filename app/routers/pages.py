@@ -83,14 +83,14 @@ _COUNTRY_SEARCH_COPY = {
         "intro": "Comparez les prix, la disponibilité et les délais de livraison des climatiseurs mobiles à {place}.",
     },
     "IT": {
-        "title": "Climatizzatore portatile disponibile a {place} — KlimaRadar",
-        "h1": "Climatizzatore portatile disponibile a {place}",
-        "intro": "Confronta prezzi, disponibilità e tempi di consegna dei climatizzatori portatili a {place}.",
+        "title": "Portable Air Conditioners in {place}: Prices and Stock | KlimaRadar",
+        "h1": "Portable air conditioners in {place}: live prices and stock",
+        "intro": "Compare live portable AC prices, availability and delivery times at Amazon.it and other Italian retailers. Find the right BTU for your room before stock sells out.",
     },
     "ES": {
-        "title": "Aire acondicionado portátil en stock en {place} — KlimaRadar",
-        "h1": "Aire acondicionado portátil en stock en {place}",
-        "intro": "Compara precios, disponibilidad y tiempos de entrega de aire acondicionado portátil en {place}.",
+        "title": "Portable Air Conditioners in {place}: Prices and Stock | KlimaRadar",
+        "h1": "Portable air conditioners in {place}: live prices and stock",
+        "intro": "Compare live portable AC prices, availability and delivery times at Amazon.es and other Spanish retailers. Find the right BTU for your room before stock sells out.",
     },
     "NL": {
         "title": "Draagbare airconditioner op voorraad in {place} — KlimaRadar",
@@ -98,9 +98,9 @@ _COUNTRY_SEARCH_COPY = {
         "intro": "Vergelijk prijzen, beschikbaarheid en levertijden van draagbare airconditioners in {place}.",
     },
     "BE": {
-        "title": "Draagbare airconditioner op voorraad in {place} — KlimaRadar",
-        "h1": "Draagbare airconditioner op voorraad in {place}",
-        "intro": "Vergelijk prijzen, beschikbaarheid en levertijden van draagbare airconditioners in {place}.",
+        "title": "Portable Air Conditioners in {place}: Prices and Stock | KlimaRadar",
+        "h1": "Portable air conditioners in {place}: live prices and stock",
+        "intro": "Compare live portable AC prices, availability and delivery times at Amazon Belgium and other local retailers. Find the right BTU for your room before stock sells out.",
     },
     "GB": {
         "title": "Portable AC in stock in {place} — KlimaRadar",
@@ -636,7 +636,9 @@ async def search(
             "intro": "Compare live portable air conditioner prices, availability and delivery times in {place}.",
         },
     )
-    place = city or country_name
+    english_search_country_names = {"IT": "Italy", "ES": "Spain", "BE": "Belgium"}
+    country_place = english_search_country_names.get(country_upper, country_name)
+    place = city or country_place
     title = search_copy["title"].format(place=place)
     description = search_copy["intro"].format(place=place)
     search_h1 = search_copy["h1"].format(place=place)

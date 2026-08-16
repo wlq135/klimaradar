@@ -158,12 +158,13 @@ def test_get_sitemap_cities_covers_both_countries():
 @pytest.mark.parametrize(
     ("path", "expected_title", "expected_h1"),
     [
-        ("/search?country=IT", "Climatizzatore portatile disponibile a Italia — KlimaRadar", "Climatizzatore portatile disponibile a Italia"),
-        ("/search?country=ES", "Aire acondicionado portátil en stock en España — KlimaRadar", "Aire acondicionado portátil en stock en España"),
+        ("/search?country=IT", "Portable Air Conditioners in Italy: Prices and Stock | KlimaRadar", "Portable air conditioners in Italy: live prices and stock"),
+        ("/search?country=ES", "Portable Air Conditioners in Spain: Prices and Stock | KlimaRadar", "Portable air conditioners in Spain: live prices and stock"),
+        ("/search?country=BE", "Portable Air Conditioners in Belgium: Prices and Stock | KlimaRadar", "Portable air conditioners in Belgium: live prices and stock"),
         ("/search?country=GB", "Portable AC in stock in United Kingdom — KlimaRadar", "Portable AC in stock in United Kingdom"),
     ],
 )
-async def test_country_search_pages_use_local_language(client, path, expected_title, expected_h1):
+async def test_high_intent_country_search_pages_match_search_demand(client, path, expected_title, expected_h1):
     response = await client.get(path)
     assert response.status_code == 200
     assert f"<title>{expected_title}</title>" in response.text
@@ -317,6 +318,7 @@ async def test_search_guide_and_sitemap_link_btu_comparisons(client):
     assert sitemap.status_code == 200
     assert 'href="/compare/it/12000-btu-portable-air-conditioner"' in search.text
     assert 'href="/compare/fr/12000-btu-portable-air-conditioner"' in guide.text
+    assert search.text.index('href="/compare/it/12000-btu-portable-air-conditioner"') < search.text.index('href="/guides/it/portable-air-conditioner"')
     for country in COMPARISON_COUNTRIES:
         assert comparison_path(country) in sitemap.text
 

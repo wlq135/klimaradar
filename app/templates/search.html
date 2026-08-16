@@ -9,22 +9,22 @@
     {% else %}
       <p class="text-slate-500">Real-time stock and price tracking for portable air conditioners.</p>
     {% endif %}
+    {% if btu_comparison %}
+    <a href="{{ btu_comparison.path }}" class="mt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-green-50 border border-emerald-200 rounded-xl p-4 hover:bg-green-100 transition">
+      <span>
+        <span class="block font-semibold text-emerald-800">{{ btu_comparison.card_title }}</span>
+        <span class="block text-sm text-slate-600">{{ btu_comparison.card_body }}</span>
+      </span>
+      <span class="text-sm font-semibold text-emerald-800 whitespace-nowrap">{{ btu_comparison.cta }} →</span>
+    </a>
+    {% endif %}
     {% if country_guide %}
-    <a href="{{ country_guide.path }}" class="mt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-blue-50 border border-blue-100 rounded-xl p-4 hover:bg-blue-100 transition">
+    <a href="{{ country_guide.path }}" class="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-blue-50 border border-blue-100 rounded-xl p-4 hover:bg-blue-100 transition">
       <span>
         <span class="block font-semibold text-blue-700">{{ country_guide.card_title }}</span>
         <span class="block text-sm text-slate-600">{{ country_guide.card_body }}</span>
       </span>
       <span class="text-sm font-semibold text-blue-700 whitespace-nowrap">{{ country_guide.read_guide }}</span>
-    </a>
-    {% endif %}
-    {% if btu_comparison %}
-    <a href="{{ btu_comparison.path }}" class="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-green-50 border border-green-100 rounded-xl p-4 hover:bg-green-100 transition">
-      <span>
-        <span class="block font-semibold text-green-700">{{ btu_comparison.card_title }}</span>
-        <span class="block text-sm text-slate-600">{{ btu_comparison.card_body }}</span>
-      </span>
-      <span class="text-sm font-semibold text-green-700 whitespace-nowrap">{{ btu_comparison.cta }} →</span>
     </a>
     {% endif %}
   </div>
