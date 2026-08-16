@@ -493,6 +493,20 @@ async def test_country_search_links_to_guide_and_renders_faq(client):
     assert "Domande frequenti sui climatizzatori portatili" in text
     assert '"@type": "FAQPage"' in text
 
+@pytest.mark.asyncio
+async def test_homepage_promotes_all_btu_comparisons(client):
+    response = await client.get("/")
+
+    assert response.status_code == 200
+    text = response.text
+    assert "Compare 12,000 BTU portable air conditioners" in text
+    assert text.index("Compare 12,000 BTU portable air conditioners") < text.index("Popular searches")
+    assert text.count('aria-labelledby="btu-comparison-heading"') == 1
+    for country in COMPARISON_COUNTRIES:
+        assert f'href="{comparison_path(country)}"' in text
+
+
+
 
 @pytest.mark.asyncio
 async def test_homepage_and_sitemap_expose_all_guides(client):

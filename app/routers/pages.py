@@ -437,6 +437,18 @@ async def index(request: Request, session: AsyncSession = Depends(get_db)):
 
     country_order = ["DE", "FR", "IT", "ES", "NL", "BE", "GB"]
     popular_searches = []
+    high_intent_comparisons = []
+    for code in country_order:
+        comparison = get_btu_comparison(code)
+        if comparison is None:
+            continue
+        high_intent_comparisons.append(
+            {
+                "country": code,
+                "country_name": COUNTRY_NAMES.get(code, {}).get("en", code),
+                "path": comparison["path"],
+            }
+        )
     for code in country_order:
         cities = list_cities_for_country(code, limit=50)
         if not cities:
@@ -472,6 +484,7 @@ async def index(request: Request, session: AsyncSession = Depends(get_db)):
             structured_data=json.dumps(structured_data, ensure_ascii=False),
             stats=stats,
             popular_searches=popular_searches,
+            high_intent_comparisons=high_intent_comparisons,
             canonical_url=canonical_url,
         ),
     )
