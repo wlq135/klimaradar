@@ -1028,10 +1028,26 @@ async def health(session: AsyncSession = Depends(get_db)):
     try:
         listing_count = await session.scalar(select(func.count(Listing.id)))
         retailer_count = await session.scalar(select(func.count(Retailer.id)))
+        click_cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+        click_count = await session.scalar(
+            select(func.count(ClickEvent.id)).where(ClickEvent.clicked_at >= click_cutoff)
+        )
+        click_source_rows = (
+            await session.execute(
+                select(ClickEvent.source, func.count(ClickEvent.id))
+                .where(ClickEvent.clicked_at >= click_cutoff)
+                .group_by(ClickEvent.source)
+            )
+        ).all()
+        clicks_by_source = {
+            (source or "legacy"): count for source, count in click_source_rows
+        }
         return {
             "status": "ok",
             "listings": listing_count,
             "retailers": retailer_count,
+            "affiliate_clicks_24h": click_count or 0,
+            "affiliate_clicks_24h_by_source": clicks_by_source,
             "email_backend": email_backend_name,
             "email_error": email_error,
         }

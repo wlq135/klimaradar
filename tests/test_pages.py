@@ -113,6 +113,56 @@ def test_get_city_info_unknown_city():
 
 
 @pytest.mark.asyncio
+async def test_health_reports_24h_affiliate_click_totals(client, db_session):
+    now = datetime.now(timezone.utc)
+    retailer = Retailer(name="Amazon Germany", country="DE", domain="amazon.de")
+    product = Product(name="Health Check AC", product_type="portable")
+    db_session.add_all([retailer, product])
+    await db_session.flush()
+    listing = Listing(
+        product_id=product.id,
+        retailer_id=retailer.id,
+        sku="HEALTH",
+        url="https://amazon.de/health",
+        country="DE",
+        stock_status="in_stock",
+        last_seen_at=now,
+    )
+    db_session.add(listing)
+    await db_session.flush()
+    db_session.add_all(
+        [
+            ClickEvent(
+                listing_id=listing.id,
+                source="country_top3",
+                clicked_at=now - timedelta(hours=2),
+            ),
+            ClickEvent(
+                listing_id=listing.id,
+                source="compare_top3",
+                clicked_at=now - timedelta(hours=3),
+            ),
+            ClickEvent(
+                listing_id=listing.id,
+                source="country_listing",
+                clicked_at=now - timedelta(hours=30),
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get("/api/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["affiliate_clicks_24h"] == 2
+    assert payload["affiliate_clicks_24h_by_source"] == {
+        "country_top3": 1,
+        "compare_top3": 1,
+    }
+
+
+@pytest.mark.asyncio
 async def test_country_page_promotes_cheapest_fresh_in_stock_deals(
     client, db_session, monkeypatch
 ):
