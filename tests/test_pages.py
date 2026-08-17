@@ -136,16 +136,25 @@ async def test_health_reports_24h_affiliate_click_totals(client, db_session):
                 listing_id=listing.id,
                 source="country_top3",
                 clicked_at=now - timedelta(hours=2),
+                user_agent="Mozilla/5.0 Chrome/126.0",
             ),
             ClickEvent(
                 listing_id=listing.id,
                 source="compare_top3",
                 clicked_at=now - timedelta(hours=3),
+                user_agent="Mozilla/5.0 Safari/605",
+            ),
+            ClickEvent(
+                listing_id=listing.id,
+                source="country_top3",
+                clicked_at=now - timedelta(hours=4),
+                user_agent="ExampleBot/1.0",
             ),
             ClickEvent(
                 listing_id=listing.id,
                 source="country_listing",
                 clicked_at=now - timedelta(hours=30),
+                user_agent="Mozilla/5.0 Chrome/126.0",
             ),
         ]
     )
@@ -155,11 +164,17 @@ async def test_health_reports_24h_affiliate_click_totals(client, db_session):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["affiliate_clicks_24h"] == 2
+    assert payload["affiliate_clicks_24h"] == 3
     assert payload["affiliate_clicks_24h_by_source"] == {
+        "country_top3": 2,
+        "compare_top3": 1,
+    }
+    assert payload["affiliate_clicks_24h_likely_human"] == 2
+    assert payload["affiliate_clicks_24h_likely_human_by_source"] == {
         "country_top3": 1,
         "compare_top3": 1,
     }
+    assert payload["affiliate_clicks_24h_likely_automated"] == 1
 
 
 @pytest.mark.asyncio

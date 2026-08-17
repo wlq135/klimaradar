@@ -970,6 +970,36 @@ def _normalized_click_source(request: Request) -> str | None:
     return source
 
 
+def _is_likely_automated_click(user_agent: str | None) -> bool:
+    """Classify obvious link checkers and crawlers without exposing raw UAs."""
+    normalized = (user_agent or "").lower()
+    markers = (
+        "bot",
+        "crawl",
+        "spider",
+        "slurp",
+        "headless",
+        "python",
+        "curl",
+        "wget",
+        "okhttp",
+        "java",
+        "go-http-client",
+        "monitor",
+        "uptime",
+        "scanner",
+        "preview",
+        "fetcher",
+        "facebookexternalhit",
+        "twitterbot",
+        "linkedinbot",
+        "discordbot",
+        "telegrambot",
+        "whatsapp",
+    )
+    return any(marker in normalized for marker in markers)
+
+
 @router.get("/go/{listing_id}")
 async def affiliate_redirect(
     request: Request,
@@ -1029,25 +1059,41 @@ async def health(session: AsyncSession = Depends(get_db)):
         listing_count = await session.scalar(select(func.count(Listing.id)))
         retailer_count = await session.scalar(select(func.count(Retailer.id)))
         click_cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
-        click_count = await session.scalar(
-            select(func.count(ClickEvent.id)).where(ClickEvent.clicked_at >= click_cutoff)
-        )
-        click_source_rows = (
+        click_rows = (
             await session.execute(
-                select(ClickEvent.source, func.count(ClickEvent.id))
+                select(ClickEvent.source, ClickEvent.user_agent, func.count(ClickEvent.id))
                 .where(ClickEvent.clicked_at >= click_cutoff)
-                .group_by(ClickEvent.source)
+                .group_by(ClickEvent.source, ClickEvent.user_agent)
             )
         ).all()
-        clicks_by_source = {
-            (source or "legacy"): count for source, count in click_source_rows
-        }
+        click_count = 0
+        likely_human_count = 0
+        likely_automated_count = 0
+        clicks_by_source = {}
+        human_clicks_by_source = {}
+        for source, user_agent, count in click_rows:
+            source_name = source or "legacy"
+            automated = _is_likely_automated_click(user_agent)
+            click_count += count
+            clicks_by_source[source_name] = (
+                clicks_by_source.get(source_name, 0) + count
+            )
+            if automated:
+                likely_automated_count += count
+            else:
+                likely_human_count += count
+                human_clicks_by_source[source_name] = (
+                    human_clicks_by_source.get(source_name, 0) + count
+                )
         return {
             "status": "ok",
             "listings": listing_count,
             "retailers": retailer_count,
             "affiliate_clicks_24h": click_count or 0,
             "affiliate_clicks_24h_by_source": clicks_by_source,
+            "affiliate_clicks_24h_likely_human": likely_human_count,
+            "affiliate_clicks_24h_likely_human_by_source": human_clicks_by_source,
+            "affiliate_clicks_24h_likely_automated": likely_automated_count,
             "email_backend": email_backend_name,
             "email_error": email_error,
         }
