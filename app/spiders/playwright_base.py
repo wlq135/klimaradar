@@ -156,6 +156,11 @@ class PlaywrightSpider(Spider):
                     "--disable-dev-shm-usage",
                     "--disable-extensions",
                     "--disable-gpu",
+                    "--disable-component-update",
+                    "--disable-domain-reliability",
+                    "--disable-sync",
+                    "--disable-features=Translate,TranslateUI,BackForwardCache",
+                    "--renderer-process-limit=1",
                 ],
             )
             context = await self._prepare_context(browser)
@@ -170,6 +175,57 @@ class PlaywrightSpider(Spider):
             finally:
                 await context.close()
                 await browser.close()
+
+    async def fetch_listings_for_queries(
+        self, queries: list[str], product_type: str | None = None
+    ) -> list[ListingSnapshot]:
+        """Fetch several search pages with one Chromium browser launch.
+
+        Render Starter instances have only 512 MB of memory. Launching a fresh
+        browser for every high-intent query pushed the web process over that
+        limit, so batched queries reuse one browser and open a lightweight page
+        for each search.
+        """
+        snapshots: list[ListingSnapshot] = []
+        seen_listing_keys: set[str] = set()
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-extensions",
+                    "--disable-gpu",
+                    "--disable-component-update",
+                    "--disable-domain-reliability",
+                    "--disable-sync",
+                    "--disable-features=Translate,TranslateUI,BackForwardCache",
+                    "--renderer-process-limit=1",
+                ],
+            )
+            context = await self._prepare_context(browser)
+            try:
+                await self._pre_navigate(context)
+                for query in queries:
+                    page = await context.new_page()
+                    try:
+                        await self._block_unnecessary_resources(page)
+                        url = self._build_search_url(query)
+                        await page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                        fetched = await self._extract_listings(page, product_type)
+                        for snapshot in fetched:
+                            listing_key = snapshot.sku or snapshot.url or snapshot.name
+                            if listing_key in seen_listing_keys:
+                                continue
+                            seen_listing_keys.add(listing_key)
+                            snapshots.append(snapshot)
+                    finally:
+                        await page.close()
+            finally:
+                await context.close()
+                await browser.close()
+        return snapshots
 
     @staticmethod
     async def _scroll_to_load(page: Page, selector: str, max_attempts: int = 3) -> None:

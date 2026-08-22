@@ -45,19 +45,23 @@ async def run_scrape(country: str | None = None) -> dict[str, dict]:
             if not queries:
                 queries = [getattr(spider, "default_query", base_query)]
 
-            snapshots: list = []
-            seen_listing_keys: set[str] = set()
-            for query in queries:
-                fetched = await spider.fetch_listings(
-                    query=query,
-                    product_type="portable",
-                )
-                for snapshot in fetched:
-                    listing_key = snapshot.sku or snapshot.url or snapshot.name
-                    if listing_key in seen_listing_keys:
-                        continue
-                    seen_listing_keys.add(listing_key)
-                    snapshots.append(snapshot)
+            batch_fetch = getattr(spider, "fetch_listings_for_queries", None)
+            if callable(batch_fetch):
+                snapshots = await batch_fetch(queries, product_type="portable")
+            else:
+                snapshots = []
+                seen_listing_keys: set[str] = set()
+                for query in queries:
+                    fetched = await spider.fetch_listings(
+                        query=query,
+                        product_type="portable",
+                    )
+                    for snapshot in fetched:
+                        listing_key = snapshot.sku or snapshot.url or snapshot.name
+                        if listing_key in seen_listing_keys:
+                            continue
+                        seen_listing_keys.add(listing_key)
+                        snapshots.append(snapshot)
 
             # Keep the ORM identity map bounded on Render's 512 MB Starter
             # instances. A single long-lived session retained every Product and
@@ -68,7 +72,7 @@ async def run_scrape(country: str | None = None) -> dict[str, dict]:
                     session, spider.retailer_id, spider.country, snapshots
                 )
             listing_count = len(snapshots)
-            del snapshots, seen_listing_keys, fetched
+            del snapshots
             gc.collect()
             await asyncio.sleep(1)
 
