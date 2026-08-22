@@ -1,5 +1,7 @@
 """High-level scraper orchestration."""
 
+import asyncio
+import gc
 import logging
 
 from sqlalchemy import select
@@ -30,53 +32,64 @@ async def run_scrape(country: str | None = None) -> dict[str, dict]:
     """
     async with AsyncSessionLocal() as session:
         retailer_map = await _build_retailer_map(session)
-        spiders = get_spiders_for_country(retailer_map, country_filter=country)
-        if not spiders:
-            logger.warning("No spiders configured for country=%s", country)
-            return {}
+    spiders = get_spiders_for_country(retailer_map, country_filter=country)
+    if not spiders:
+        logger.warning("No spiders configured for country=%s", country)
+        return {}
 
-        results: dict[str, dict] = {}
-        base_query = "portable air conditioner"
-        for spider in spiders:
-            try:
-                queries = list(getattr(spider, "default_queries", None) or [])
-                if not queries:
-                    queries = [getattr(spider, "default_query", base_query)]
+    results: dict[str, dict] = {}
+    base_query = "portable air conditioner"
+    for spider in spiders:
+        try:
+            queries = list(getattr(spider, "default_queries", None) or [])
+            if not queries:
+                queries = [getattr(spider, "default_query", base_query)]
 
-                snapshots: list = []
-                seen_listing_keys: set[str] = set()
-                for query in queries:
-                    fetched = await spider.fetch_listings(
-                        query=query,
-                        product_type="portable",
-                    )
-                    for snapshot in fetched:
-                        listing_key = snapshot.sku or snapshot.url or snapshot.name
-                        if listing_key in seen_listing_keys:
-                            continue
-                        seen_listing_keys.add(listing_key)
-                        snapshots.append(snapshot)
+            snapshots: list = []
+            seen_listing_keys: set[str] = set()
+            for query in queries:
+                fetched = await spider.fetch_listings(
+                    query=query,
+                    product_type="portable",
+                )
+                for snapshot in fetched:
+                    listing_key = snapshot.sku or snapshot.url or snapshot.name
+                    if listing_key in seen_listing_keys:
+                        continue
+                    seen_listing_keys.add(listing_key)
+                    snapshots.append(snapshot)
+
+            # Keep the ORM identity map bounded on Render's 512 MB Starter
+            # instances. A single long-lived session retained every Product and
+            # Listing across all seven Amazon marketplaces while Chromium was
+            # also running, which repeatedly pushed the process over the limit.
+            async with AsyncSessionLocal() as session:
                 stats = await upsert_listings(
                     session, spider.retailer_id, spider.country, snapshots
                 )
-                results[spider.name] = {
-                    "success": True,
-                    "listings": len(snapshots),
-                    "queries": queries,
-                    "stats": stats,
-                }
-                logger.info(
-                    "Spider %s fetched %d listings. Stats: %s",
-                    spider.name,
-                    len(snapshots),
-                    stats,
-                )
-            except Exception as exc:
-                logger.exception("Spider %s failed: %s", spider.name, exc)
-                results[spider.name] = {
-                    "success": False,
-                    "error": str(exc),
-                    "listings": 0,
-                    "stats": {},
-                }
-        return results
+            listing_count = len(snapshots)
+            del snapshots, seen_listing_keys, fetched
+            gc.collect()
+            await asyncio.sleep(seconds=1)
+
+            results[spider.name] = {
+                "success": True,
+                "listings": listing_count,
+                "queries": queries,
+                "stats": stats,
+            }
+            logger.info(
+                "Spider %s fetched %d listings. Stats: %s",
+                spider.name,
+                listing_count,
+                stats,
+            )
+        except Exception as exc:
+            logger.exception("Spider %s failed: %s", spider.name, exc)
+            results[spider.name] = {
+                "success": False,
+                "error": str(exc),
+                "listings": 0,
+                "stats": {},
+            }
+    return results
