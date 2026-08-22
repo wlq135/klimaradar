@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     # Demo data/spider. Keep disabled on the public site to avoid fake listings.
     enable_demo: bool = False
 
+    # Run scraping inside the web process. Disable when scraping is moved to a
+    # separate worker, or when a 512 MB web instance must stay alive using its
+    # existing data while memory issues are investigated.
+    enable_scheduler: bool = True
+
     amazon_de_affiliate_tag: str = ""
     amazon_uk_affiliate_tag: str = ""
     amazon_fr_affiliate_tag: str = ""

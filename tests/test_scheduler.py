@@ -14,3 +14,10 @@ def test_scraper_runs_soon_after_startup():
     assert job is not None
     delay = (job.next_run_time - datetime.now(timezone.utc)).total_seconds()
     assert 0 < delay <= 60
+
+
+def test_scheduler_can_be_disabled_to_protect_web_instance(monkeypatch):
+    monkeypatch.setattr(settings, "enable_scheduler", False)
+    scheduler = create_scheduler()
+
+    assert scheduler.get_jobs() == []

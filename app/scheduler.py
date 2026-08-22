@@ -112,6 +112,12 @@ async def _scheduled_backup():
 def create_scheduler() -> AsyncIOScheduler:
     """Create and configure the APScheduler instance."""
     scheduler = AsyncIOScheduler()
+    if not settings.enable_scheduler:
+        logger.warning(
+            "Scheduler disabled: in-process scraping and maintenance jobs will not run"
+        )
+        return scheduler
+
     scheduler.add_job(
         _scheduled_scrape,
         "interval",

@@ -29,6 +29,8 @@ services:
         sync: false
       - key: ENABLE_DEMO
         value: "false"
+      - key: ENABLE_SCHEDULER
+        value: "false"
       - key: AMAZON_DE_AFFILIATE_TAG
         value: "klrmrd-21"
       - key: AMAZON_UK_AFFILIATE_TAG
