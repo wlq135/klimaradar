@@ -20,7 +20,7 @@ from app.config import settings
 from app.database import get_db
 from app.models import ClickEvent, Listing, Product, Retailer
 from app.rate_limit import admin_scrape_limiter
-from app.schemas import SearchFilters, StatsOut
+from app.schemas import ScrapeIngestIn, SearchFilters, StatsOut
 from app.seo import (
     COUNTRY_NAMES,
     COUNTRY_LANGUAGES,
@@ -44,6 +44,8 @@ from app.seo import (
 from app.services.affiliate import tag_url
 from app.services.paddle import list_checkout_domains
 from app.services.scraper import run_scrape
+from app.services.stock_monitor import upsert_listings
+from app.spiders.base import ListingSnapshot
 from app.templating import templates
 
 
@@ -1119,6 +1121,52 @@ async def trigger_scrape(
         raise HTTPException(status_code=403, detail="Invalid admin API key")
     results = await run_scrape(country=country)
     return {"results": results}
+
+
+@router.post("/api/admin/ingest")
+async def ingest_worker_scrape(
+    payload: ScrapeIngestIn,
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    x_admin_api_key: str | None = Header(None, alias="X-Admin-API-Key"),
+):
+    """Persist snapshots scraped by the standalone worker.
+
+    The worker does not share the web service's SQLite disk, so it sends only
+    normalized listing snapshots over HTTPS. This keeps Chromium out of the web
+    process while preserving the existing database and alert pipeline.
+    """
+    await admin_scrape_limiter.check(_client_ip(request))
+    if not settings.admin_api_key:
+        raise HTTPException(status_code=503, detail="Admin endpoint is not configured")
+    if not x_admin_api_key or not secrets.compare_digest(
+        x_admin_api_key, settings.admin_api_key
+    ):
+        raise HTTPException(status_code=403, detail="Invalid admin API key")
+
+    retailer = await session.scalar(
+        select(Retailer).where(
+            Retailer.country == payload.country,
+            Retailer.name == payload.retailer_name,
+        )
+    )
+    if not retailer:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Retailer not found: {payload.country}/{payload.retailer_name}",
+        )
+
+    snapshots = [
+        ListingSnapshot(**snapshot.model_dump())
+        for snapshot in payload.snapshots
+    ]
+    stats = await upsert_listings(session, retailer.id, payload.country, snapshots)
+    return {
+        "retailer": retailer.name,
+        "country": payload.country,
+        "listings": len(snapshots),
+        "stats": stats,
+    }
 
 
 @router.get("/api/admin/paddle/checkout-domains")

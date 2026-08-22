@@ -155,6 +155,33 @@ class StatsOut(BaseModel):
     countries: list[str]
 
 
+class ListingSnapshotIn(BaseModel):
+    """Normalized scraper result sent from the standalone worker."""
+
+    name: str = Field(..., min_length=1, max_length=255)
+    brand: str | None = Field(default=None, max_length=100)
+    sku: str | None = Field(default=None, max_length=100)
+    url: str = Field(..., min_length=1, max_length=2048)
+    price: float | None = Field(default=None, ge=0)
+    currency: str = Field(default="EUR", min_length=3, max_length=3)
+    stock_status: str = Field(default="unknown", max_length=20)
+    delivery_days: int | None = Field(default=None, ge=0)
+    image_url: str | None = Field(default=None, max_length=2048)
+    btu_min: int | None = Field(default=None, ge=0)
+    btu_max: int | None = Field(default=None, ge=0)
+    product_type: str = Field(default="portable", max_length=20)
+    specs_json: str | None = Field(default=None, max_length=10000)
+
+
+class ScrapeIngestIn(BaseModel):
+    """One retailer's deduplicated snapshots from a worker scrape."""
+
+    country: str = Field(..., min_length=2, max_length=2)
+    retailer_name: str = Field(..., min_length=1, max_length=100)
+    queries: list[str] = Field(default_factory=list, max_length=20)
+    snapshots: list[ListingSnapshotIn] = Field(default_factory=list, max_length=500)
+
+
 class FeedbackCreate(BaseModel):
     name: str | None = None
     email: EmailStr | None = None

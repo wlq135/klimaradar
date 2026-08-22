@@ -30,6 +30,8 @@ services:
       - key: ENABLE_DEMO
         value: "false"
       - key: ENABLE_SCHEDULER
+        value: "true"
+      - key: ENABLE_SCRAPER
         value: "false"
       - key: AMAZON_DE_AFFILIATE_TAG
         value: "klrmrd-21"
@@ -96,3 +98,30 @@ services:
       name: klimaradar-data
       mountPath: /data
       sizeGB: 1
+  - type: worker
+    name: klimaradar-scraper
+    runtime: docker
+    repo: https://github.com/wlq135/klimaradar
+    plan: starter
+    dockerCommand: python -m app.worker
+    envVars:
+      - key: ENABLE_SCHEDULER
+        value: "false"
+      - key: ENABLE_SCRAPER
+        value: "false"
+      - key: WORKER_API_BASE
+        value: https://klima-radar.com
+      - key: WORKER_API_KEY
+        sync: false
+      - key: WORKER_COUNTRY
+        value: ""
+      - key: SCRAPER_INTERVAL_MINUTES
+        value: "10"
+      - key: PLAYWRIGHT_PROXY_SERVER
+        sync: false
+      - key: PLAYWRIGHT_PROXY_USERNAME
+        sync: false
+      - key: PLAYWRIGHT_PROXY_PASSWORD
+        sync: false
+      - key: PLAYWRIGHT_PROXY_RETAILERS
+        sync: false

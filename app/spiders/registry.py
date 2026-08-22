@@ -66,6 +66,35 @@ def _affiliate_tag_for(country: str, retailer_name: str) -> str | None:
     return None
 
 
+def get_spider_specs(country_filter: str | None = None) -> list[tuple[str, str, type[Spider]]]:
+    """Return live retailer spider definitions without requiring database IDs.
+
+    The standalone worker does not share the web service's SQLite disk, so it
+    instantiates spiders with a placeholder retailer ID and sends snapshots to
+    the web service for persistence.
+    """
+    specs: list[tuple[str, str, type[Spider]]] = [
+        ("DE", "Amazon Germany", AmazonDeSpider),
+        ("FR", "Amazon France", AmazonFrSpider),
+        ("IT", "Amazon Italy", AmazonItSpider),
+        ("ES", "Amazon Spain", AmazonEsSpider),
+        ("NL", "Amazon Netherlands", AmazonNlSpider),
+        ("BE", "Amazon Belgium", AmazonBeSpider),
+        ("GB", "Amazon United Kingdom", AmazonUkSpider),
+    ]
+    # Protected retailers only make sense when the worker also receives proxy
+    # configuration. Otherwise a guaranteed browser-launch failure wastes memory.
+    if settings.playwright_proxy_server:
+        specs.extend([
+            ("DE", "MediaMarkt Germany", MediaMarktDeSpider),
+            ("FR", "Boulanger France", BoulangerFrSpider),
+            ("FR", "Darty France", DartyFrSpider),
+        ])
+    if country_filter:
+        specs = [spec for spec in specs if spec[0] == country_filter]
+    return specs
+
+
 def get_spiders_for_country(
     retailer_id_map: dict[tuple[str, str], int],
     country_filter: str | None = None,
@@ -84,32 +113,9 @@ def get_spiders_for_country(
         if demo_id:
             spiders.append(DemoSpider(retailer_id=demo_id))
 
-    # Playwright-based spiders for known retailers.
-    # Amazon serves static-ish pages that Playwright can fetch without a
-    # proxy. Retailers behind DataDome or advanced bot detection (MediaMarkt,
-    # Boulanger, Darty) require a residential proxy and are skipped otherwise.
-    playwright_spiders: list[tuple[str, str, type[Spider]]] = [
-        ("DE", "Amazon Germany", AmazonDeSpider),
-        ("FR", "Amazon France", AmazonFrSpider),
-        ("IT", "Amazon Italy", AmazonItSpider),
-        ("ES", "Amazon Spain", AmazonEsSpider),
-        ("NL", "Amazon Netherlands", AmazonNlSpider),
-        ("BE", "Amazon Belgium", AmazonBeSpider),
-        ("GB", "Amazon United Kingdom", AmazonUkSpider),
-    ]
-    # Retailers protected by DataDome / advanced bot detection require a
-    # residential proxy. Skip them when no proxy is configured to avoid
-    # wasting a full browser launch per scrape cycle on guaranteed failures.
-    if settings.playwright_proxy_server:
-        playwright_spiders.extend([
-            ("DE", "MediaMarkt Germany", MediaMarktDeSpider),
-            ("FR", "Boulanger France", BoulangerFrSpider),
-            ("FR", "Darty France", DartyFrSpider),
-        ])
-
-    for country, retailer_name, spider_cls in playwright_spiders:
-        if country_filter and country != country_filter:
-            continue
+    # Playwright-based spiders for known retailers. Proxy-gated retailers are
+    # included only when PLAYWRIGHT_PROXY_SERVER is configured.
+    for country, retailer_name, spider_cls in get_spider_specs(country_filter):
         retailer_id = retailer_id_map.get((country, retailer_name))
         if not retailer_id:
             continue

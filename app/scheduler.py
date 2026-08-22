@@ -118,14 +118,19 @@ def create_scheduler() -> AsyncIOScheduler:
         )
         return scheduler
 
-    scheduler.add_job(
-        _scheduled_scrape,
-        "interval",
-        minutes=settings.scraper_interval_minutes,
-        next_run_time=datetime.now(timezone.utc) + timedelta(seconds=30),
-        id="ac_scrape",
-        replace_existing=True,
-    )
+    if settings.enable_scraper:
+        scheduler.add_job(
+            _scheduled_scrape,
+            "interval",
+            minutes=settings.scraper_interval_minutes,
+            next_run_time=datetime.now(timezone.utc) + timedelta(seconds=30),
+            id="ac_scrape",
+            replace_existing=True,
+        )
+    else:
+        logger.info(
+            "In-process scraper disabled: the standalone worker owns Chromium scraping"
+        )
     scheduler.add_job(
         _scheduled_digest,
         "cron",

@@ -39,10 +39,20 @@ class Settings(BaseSettings):
     # Demo data/spider. Keep disabled on the public site to avoid fake listings.
     enable_demo: bool = False
 
-    # Run scraping inside the web process. Disable when scraping is moved to a
-    # separate worker, or when a 512 MB web instance must stay alive using its
-    # existing data while memory issues are investigated.
+    # Run low-memory maintenance jobs inside the web process. Keep this enabled
+    # even when Chromium scraping is moved to the standalone worker.
     enable_scheduler: bool = True
+
+    # Run Chromium scraping inside the web process. Keep this disabled on the
+    # 512 MB Render Starter web service; the standalone worker posts snapshots
+    # to /api/admin/ingest instead.
+    enable_scraper: bool = True
+
+    # Standalone scraper worker. The worker runs Playwright and sends normalized
+    # snapshots to the web service's admin ingest endpoint over HTTPS.
+    worker_api_base: str = ""
+    worker_api_key: str = ""
+    worker_country: str = ""
 
     amazon_de_affiliate_tag: str = ""
     amazon_uk_affiliate_tag: str = ""
