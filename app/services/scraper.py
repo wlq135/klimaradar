@@ -70,7 +70,7 @@ async def run_scrape(country: str | None = None) -> dict[str, dict]:
             listing_count = len(snapshots)
             del snapshots, seen_listing_keys, fetched
             gc.collect()
-            await asyncio.sleep(seconds=1)
+            await asyncio.sleep(1)
 
             results[spider.name] = {
                 "success": True,
