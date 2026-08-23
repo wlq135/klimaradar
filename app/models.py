@@ -178,6 +178,9 @@ class AlertSubscription(Base):
     frequency: Mapped[str] = mapped_column(
         String(20), default=AlertFrequency.IMMEDIATE.value, nullable=False
     )
+    source: Mapped[str] = mapped_column(
+        String(40), default="direct", nullable=False, index=True
+    )
     digest_last_sent_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -261,6 +264,9 @@ class ClickEvent(Base):
         nullable=False,
     )
     source: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    placement: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
+    position: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    page_ref: Mapped[str | None] = mapped_column(String(500), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
     ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 

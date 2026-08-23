@@ -105,6 +105,50 @@ async def test_first_alert_is_free(client):
 
 
 @pytest.mark.asyncio
+async def test_subscription_source_is_normalized_and_stored(client, db_session):
+    from app.models import AlertSubscription
+
+    response = await _create_alert(client)
+    response = await client.post(
+        "/api/alerts/subscribe",
+        json={
+            "email": "source@example.com",
+            "country": "DE",
+            "city": "Berlin",
+            "product_type": "portable",
+            "in_stock_only": True,
+            "source": "compare_inline",
+        },
+    )
+
+    assert response.status_code == 200
+    subscription = await db_session.scalar(
+        select(AlertSubscription).where(
+            AlertSubscription.email == "source@example.com"
+        )
+    )
+    assert subscription is not None
+    assert subscription.source == "compare_inline"
+
+    invalid = await client.post(
+        "/api/alerts/subscribe",
+        json={
+            "email": "invalid-source@example.com",
+            "country": "DE",
+            "city": "Munich",
+            "source": "sketchy-popup",
+        },
+    )
+    assert invalid.status_code == 200
+    stored = await db_session.scalar(
+        select(AlertSubscription).where(
+            AlertSubscription.email == "invalid-source@example.com"
+        )
+    )
+    assert stored.source == "direct"
+
+
+@pytest.mark.asyncio
 async def test_second_alert_requires_upgrade(client):
     await _create_alert(client, city="Berlin")
 

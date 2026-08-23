@@ -116,6 +116,57 @@ async def test_go_redirect_tags_amazon_url_and_logs_click(client, db_session):
 
 
 @pytest.mark.asyncio
+async def test_go_redirect_records_bounded_attribution(client, db_session):
+    listing = await _create_test_listing(
+        db_session,
+        retailer_name="Amazon Germany",
+        domain="https://www.amazon.de",
+        url="https://www.amazon.de/dp/B08ATTRIBUTION",
+    )
+
+    response = await client.get(
+        f"/go/{listing.id}?source=city_listing&placement=listing&position=3",
+        headers={
+            "User-Agent": "Mozilla/5.0 Chrome/126.0",
+            "Referer": "http://testserver/de/berlin/portable-ac-in-stock",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code in (307, 302)
+    event = await db_session.scalar(select(ClickEvent))
+    assert event is not None
+    assert event.source == "city_listing"
+    assert event.placement == "listing"
+    assert event.position == 3
+    assert event.page_ref == "/de/berlin/portable-ac-in-stock"
+
+
+@pytest.mark.asyncio
+async def test_go_redirect_ignores_untrusted_attribution(client, db_session):
+    listing = await _create_test_listing(
+        db_session,
+        retailer_name="Amazon Germany",
+        domain="https://www.amazon.de",
+        url="https://www.amazon.de/dp/B08UNSAFEATTR",
+    )
+
+    response = await client.get(
+        f"/go/{listing.id}?source=city_listing&placement=hero&position=999",
+        headers={"Referer": "https://evil.example.com/products"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code in (307, 302)
+    event = await db_session.scalar(select(ClickEvent))
+    assert event is not None
+    assert event.source == "city_listing"
+    assert event.placement is None
+    assert event.position is None
+    assert event.page_ref is None
+
+
+@pytest.mark.asyncio
 async def test_go_redirect_tags_amazon_belgium_marketplace_url(
     client, db_session, monkeypatch
 ):

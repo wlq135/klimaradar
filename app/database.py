@@ -71,5 +71,40 @@ async def run_migrations() -> None:
                 )
             )
 
+    def _migrate_click_events(sync_conn):
+        result = sync_conn.execute(text("PRAGMA table_info(click_events)"))
+        columns = {row[1] for row in result}
+        if "placement" not in columns:
+            sync_conn.execute(
+                text(
+                    "ALTER TABLE click_events "
+                    "ADD COLUMN placement VARCHAR(20)"
+                )
+            )
+        if "position" not in columns:
+            sync_conn.execute(
+                text("ALTER TABLE click_events ADD COLUMN position INTEGER")
+            )
+        if "page_ref" not in columns:
+            sync_conn.execute(
+                text("ALTER TABLE click_events ADD COLUMN page_ref VARCHAR(500)")
+            )
+        sync_conn.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_click_events_placement ON click_events (placement)")
+        )
+
+    def _migrate_alert_subscription_source(sync_conn):
+        result = sync_conn.execute(text("PRAGMA table_info(alert_subscriptions)"))
+        columns = {row[1] for row in result}
+        if "source" not in columns:
+            sync_conn.execute(
+                text(
+                    "ALTER TABLE alert_subscriptions "
+                    "ADD COLUMN source VARCHAR(40) NOT NULL DEFAULT 'direct'"
+                )
+            )
+
     async with engine.begin() as conn:
         await conn.run_sync(_migrate_alert_subscriptions)
+        await conn.run_sync(_migrate_click_events)
+        await conn.run_sync(_migrate_alert_subscription_source)

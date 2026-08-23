@@ -18,7 +18,7 @@ from sqlalchemy.orm import selectinload
 from app.cloudflare import get_client_ip
 from app.config import settings
 from app.database import get_db
-from app.models import ClickEvent, Listing, Product, Retailer
+from app.models import AlertSubscription, ClickEvent, Listing, Product, Retailer
 from app.rate_limit import admin_scrape_limiter
 from app.schemas import ScrapeIngestIn, SearchFilters, StatsOut
 from app.seo import (
@@ -711,6 +711,7 @@ async def search(
     if country_upper in {"IT", "ES", "BE"}:
         top_deals_ui = top_deals_ui | _TOP_DEALS_UI_COPY["en"]
     listing_source = "city_listing" if city else "country_listing"
+    subscription_context = "city" if city else "country"
     return templates.TemplateResponse(
         request,
         "search.html",
@@ -728,6 +729,7 @@ async def search(
             top_deals_ui=top_deals_ui,
             top_deal_source="country_top3",
             listing_source=listing_source,
+            subscription_context=subscription_context,
             filters=filters.model_dump(),
             total=total,
             noindex=noindex,
@@ -821,6 +823,7 @@ async def btu_comparison_page(
             top_deals=top_deals,
             top_deal_source="compare_top3",
             listing_source="compare_listing",
+            subscription_context="compare",
             filters=filters.model_dump(),
             total=total,
             current_page=1,
@@ -948,6 +951,7 @@ async def city_seo_page(
             faq_content=faq_content,
             listings=listings,
             listing_source="city_listing",
+            subscription_context="city",
             filters=filters.model_dump(),
             total=len(listings),
             seo_mode=True,
@@ -963,6 +967,8 @@ _ALLOWED_CLICK_SOURCES = {
     "compare_listing",
 }
 
+_ALLOWED_CLICK_PLACEMENTS = {"top3", "listing"}
+
 
 def _normalized_click_source(request: Request) -> str | None:
     """Keep outbound-source values stable and bounded for analytics."""
@@ -970,6 +976,44 @@ def _normalized_click_source(request: Request) -> str | None:
     if source not in _ALLOWED_CLICK_SOURCES:
         return None
     return source
+
+
+def _normalized_click_placement(request: Request) -> str | None:
+    """Distinguish top-three modules from the main listing list."""
+    placement = request.query_params.get("placement")
+    if placement not in _ALLOWED_CLICK_PLACEMENTS:
+        return None
+    return placement
+
+
+def _normalized_click_position(request: Request) -> int | None:
+    """Keep the visible item position bounded and useful for analysis."""
+    raw_position = request.query_params.get("position")
+    if raw_position is None or not raw_position.isdigit():
+        return None
+    position = int(raw_position)
+    return position if 1 <= position <= 100 else None
+
+
+def _same_site_page_ref(request: Request) -> str | None:
+    """Store only the first-party path/query that referred an outbound click."""
+    referrer = request.headers.get("referer")
+    if not referrer:
+        return None
+    try:
+        parsed = urlparse(referrer)
+    except ValueError:
+        return None
+    if parsed.scheme not in ("http", "https") or not parsed.path:
+        return None
+
+    request_host = (request.url.netloc or "").lower().removeprefix("www.")
+    referrer_host = (parsed.netloc or request_host).lower().removeprefix("www.")
+    if parsed.netloc and referrer_host != request_host:
+        return None
+
+    page_ref = parsed.path + (f"?{parsed.query}" if parsed.query else "")
+    return page_ref[:500] or None
 
 
 def _is_likely_automated_click(user_agent: str | None) -> bool:
@@ -1021,6 +1065,9 @@ async def affiliate_redirect(
     click = ClickEvent(
         listing_id=listing.id,
         source=_normalized_click_source(request),
+        placement=_normalized_click_placement(request),
+        position=_normalized_click_position(request),
+        page_ref=_same_site_page_ref(request),
         user_agent=request.headers.get("user-agent"),
         ip_hash=_hash_ip(_client_ip(request)),
     )
@@ -1063,9 +1110,14 @@ async def health(session: AsyncSession = Depends(get_db)):
         click_cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
         click_rows = (
             await session.execute(
-                select(ClickEvent.source, ClickEvent.user_agent, func.count(ClickEvent.id))
+                select(
+                    ClickEvent.source,
+                    ClickEvent.placement,
+                    ClickEvent.user_agent,
+                    func.count(ClickEvent.id),
+                )
                 .where(ClickEvent.clicked_at >= click_cutoff)
-                .group_by(ClickEvent.source, ClickEvent.user_agent)
+                .group_by(ClickEvent.source, ClickEvent.placement, ClickEvent.user_agent)
             )
         ).all()
         click_count = 0
@@ -1073,12 +1125,18 @@ async def health(session: AsyncSession = Depends(get_db)):
         likely_automated_count = 0
         clicks_by_source = {}
         human_clicks_by_source = {}
-        for source, user_agent, count in click_rows:
+        clicks_by_placement = {}
+        human_clicks_by_placement = {}
+        for source, placement, user_agent, count in click_rows:
             source_name = source or "legacy"
+            placement_name = placement or "unknown"
             automated = _is_likely_automated_click(user_agent)
             click_count += count
             clicks_by_source[source_name] = (
                 clicks_by_source.get(source_name, 0) + count
+            )
+            clicks_by_placement[placement_name] = (
+                clicks_by_placement.get(placement_name, 0) + count
             )
             if automated:
                 likely_automated_count += count
@@ -1087,15 +1145,34 @@ async def health(session: AsyncSession = Depends(get_db)):
                 human_clicks_by_source[source_name] = (
                     human_clicks_by_source.get(source_name, 0) + count
                 )
+                human_clicks_by_placement[placement_name] = (
+                    human_clicks_by_placement.get(placement_name, 0) + count
+                )
+        subscription_rows = (
+            await session.execute(
+                select(AlertSubscription.source, func.count(AlertSubscription.id))
+                .where(
+                    AlertSubscription.active.is_(True),
+                    AlertSubscription.verified.is_(True),
+                )
+                .group_by(AlertSubscription.source)
+            )
+        ).all()
+        subscriptions_by_source = {
+            source or "direct": count for source, count in subscription_rows
+        }
         return {
             "status": "ok",
             "listings": listing_count,
             "retailers": retailer_count,
             "affiliate_clicks_24h": click_count or 0,
             "affiliate_clicks_24h_by_source": clicks_by_source,
+            "affiliate_clicks_24h_by_placement": clicks_by_placement,
             "affiliate_clicks_24h_likely_human": likely_human_count,
             "affiliate_clicks_24h_likely_human_by_source": human_clicks_by_source,
+            "affiliate_clicks_24h_likely_human_by_placement": human_clicks_by_placement,
             "affiliate_clicks_24h_likely_automated": likely_automated_count,
+            "active_subscriptions_by_source": subscriptions_by_source,
             "email_backend": email_backend_name,
             "email_error": email_error,
         }
@@ -1220,8 +1297,13 @@ async def click_analytics(
     stmt = (
         select(
             ClickEvent.source,
+            ClickEvent.placement,
+            ClickEvent.page_ref,
             Listing.country,
             Product.name.label("product_name"),
+            Product.btu_min,
+            Product.btu_max,
+            Listing.stock_status,
             Retailer.name.label("retailer_name"),
             Retailer.domain.label("retailer_domain"),
             func.count(ClickEvent.id).label("clicks"),
@@ -1232,9 +1314,14 @@ async def click_analytics(
         .where(ClickEvent.clicked_at >= cutoff)
         .group_by(
             ClickEvent.source,
+            ClickEvent.placement,
+            ClickEvent.page_ref,
             Listing.country,
             Product.id,
             Product.name,
+            Product.btu_min,
+            Product.btu_max,
+            Listing.stock_status,
             Retailer.id,
             Retailer.name,
             Retailer.domain,
@@ -1245,8 +1332,13 @@ async def click_analytics(
     rows = [
         {
             "source": row.source or "legacy",
+            "placement": row.placement or "unknown",
+            "page": row.page_ref,
             "country": row.country,
             "product": row.product_name,
+            "btu_min": row.btu_min,
+            "btu_max": row.btu_max,
+            "stock_status": row.stock_status,
             "retailer": row.retailer_name,
             "retailer_domain": row.retailer_domain,
             "clicks": row.clicks,
@@ -1255,15 +1347,25 @@ async def click_analytics(
     ]
     by_country = Counter()
     by_source = Counter()
+    by_placement = Counter()
+    by_stock_status = Counter()
+    by_page = Counter()
     for row in rows:
         by_country[row["country"]] += row["clicks"]
         by_source[row["source"]] += row["clicks"]
+        by_placement[row["placement"]] += row["clicks"]
+        by_stock_status[row["stock_status"]] += row["clicks"]
+        if row["page"]:
+            by_page[row["page"]] += row["clicks"]
 
     return {
         "days": days,
         "total_clicks": total,
         "by_country": dict(by_country),
         "by_source": dict(by_source),
+        "by_placement": dict(by_placement),
+        "by_stock_status": dict(by_stock_status),
+        "by_page": dict(by_page.most_common(20)),
         "rows": rows,
     }
 

@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
 from app.database import get_db
-from app.models import Base, ClickEvent, Listing, Product, Retailer
+from app.models import AlertSubscription, Base, ClickEvent, Listing, Product, Retailer
 from app.routers import pages
 from app.seo import (
     build_breadcrumb_jsonld,
@@ -135,28 +135,44 @@ async def test_health_reports_24h_affiliate_click_totals(client, db_session):
             ClickEvent(
                 listing_id=listing.id,
                 source="country_top3",
+                placement="top3",
+                position=1,
                 clicked_at=now - timedelta(hours=2),
                 user_agent="Mozilla/5.0 Chrome/126.0",
             ),
             ClickEvent(
                 listing_id=listing.id,
                 source="compare_top3",
+                placement="top3",
+                position=2,
                 clicked_at=now - timedelta(hours=3),
                 user_agent="Mozilla/5.0 Safari/605",
             ),
             ClickEvent(
                 listing_id=listing.id,
                 source="country_top3",
+                placement="top3",
+                position=3,
                 clicked_at=now - timedelta(hours=4),
                 user_agent="ExampleBot/1.0",
             ),
             ClickEvent(
                 listing_id=listing.id,
                 source="country_listing",
+                placement="listing",
                 clicked_at=now - timedelta(hours=30),
                 user_agent="Mozilla/5.0 Chrome/126.0",
             ),
         ]
+    )
+    db_session.add(
+        AlertSubscription(
+            email="active@example.com",
+            country="DE",
+            verified=True,
+            active=True,
+            source="city_inline",
+        )
     )
     await db_session.commit()
 
@@ -174,7 +190,10 @@ async def test_health_reports_24h_affiliate_click_totals(client, db_session):
         "country_top3": 1,
         "compare_top3": 1,
     }
+    assert payload["affiliate_clicks_24h_by_placement"] == {"top3": 3}
+    assert payload["affiliate_clicks_24h_likely_human_by_placement"] == {"top3": 2}
     assert payload["affiliate_clicks_24h_likely_automated"] == 1
+    assert payload["active_subscriptions_by_source"] == {"city_inline": 1}
 
 
 @pytest.mark.asyncio
@@ -251,19 +270,26 @@ async def test_country_page_promotes_cheapest_fresh_in_stock_deals(
     assert "Stale AC" not in text
     assert text.index("Cheap Fresh AC") < text.index("Mid Fresh AC")
     assert text.count("source=country_top3") == 2
-    assert f'href="/go/{cheap_listing.id}?source=country_top3"' in text
-    assert f'href="/go/{mid_listing.id}?source=country_top3"' in text
-    assert f'href="/go/{cheap_listing.id}?source=country_listing"' in text
+    assert 'name="source" value="country_inline"' in text
+    assert f'href="/go/{cheap_listing.id}?source=country_top3&amp;placement=top3&amp;position=1"' in text
+    assert f'href="/go/{mid_listing.id}?source=country_top3&amp;placement=top3&amp;position=2"' in text
+    assert f'href="/go/{cheap_listing.id}?source=country_listing&amp;placement=listing&amp;position=1"' in text
 
     redirect = await client.get(
-        f"/go/{cheap_listing.id}?source=country_top3",
-        headers={"User-Agent": "pytest"},
+        f"/go/{cheap_listing.id}?source=country_top3&placement=top3&position=1",
+        headers={
+            "User-Agent": "pytest",
+            "Referer": "http://testserver/search?country=DE",
+        },
     )
     assert redirect.status_code == 307
     events = (await db_session.execute(select(ClickEvent))).scalars().all()
     assert len(events) == 1
     assert events[0].listing_id == cheap_listing.id
     assert events[0].source == "country_top3"
+    assert events[0].placement == "top3"
+    assert events[0].position == 1
+    assert events[0].page_ref == "/search?country=DE"
 
     monkeypatch.setattr(pages.settings, "admin_api_key", "test-admin-key")
     pages.admin_scrape_limiter._store.clear()
@@ -276,7 +302,13 @@ async def test_country_page_promotes_cheapest_fresh_in_stock_deals(
     assert payload["total_clicks"] == 1
     assert payload["by_country"] == {"DE": 1}
     assert payload["by_source"] == {"country_top3": 1}
+    assert payload["by_placement"] == {"top3": 1}
+    assert payload["by_stock_status"] == {"in_stock": 1}
+    assert payload["by_page"] == {"/search?country=DE": 1}
     assert payload["rows"][0]["product"] == "Cheap Fresh AC"
+    assert payload["rows"][0]["btu_min"] == 9000
+    assert payload["rows"][0]["btu_max"] == 9000
+    assert payload["rows"][0]["stock_status"] == "in_stock"
     assert payload["rows"][0]["retailer"] == "Amazon Germany"
 
 
@@ -333,7 +365,8 @@ async def test_comparison_page_promotes_12000_btu_deals(client, db_session):
     assert response.status_code == 200
     assert "Suitable 12000 AC" in response.text
     assert "Too Small AC" not in response.text
-    assert f'href="/go/{suitable_listing.id}?source=compare_top3"' in response.text
+    assert f'href="/go/{suitable_listing.id}?source=compare_top3&amp;placement=top3&amp;position=1"' in response.text
+    assert 'name="source" value="compare_inline"' in response.text
 
 def test_get_seo_copy_german():
     info = get_city_info("DE", "berlin")
@@ -406,6 +439,33 @@ async def test_city_page_renders_localized_german(client):
     assert 'hreflang="de-DE"' in text
     assert 'hreflang="x-default"' in text
     assert '"@type": "BreadcrumbList"' in text
+
+
+@pytest.mark.asyncio
+async def test_city_page_with_listing_offers_inline_alert_capture(client, db_session):
+    now = datetime.now(timezone.utc)
+    retailer = Retailer(name="Amazon Germany", country="DE", domain="amazon.de")
+    product = Product(name="Berlin Inline AC", product_type="portable")
+    db_session.add_all([retailer, product])
+    await db_session.flush()
+    db_session.add(
+        Listing(
+            product_id=product.id,
+            retailer_id=retailer.id,
+            sku="BERLIN-INLINE",
+            url="https://amazon.de/berlin-inline",
+            country="DE",
+            stock_status="in_stock",
+            last_seen_at=now,
+        )
+    )
+    await db_session.commit()
+
+    response = await client.get("/de/berlin/portable-ac-in-stock")
+
+    assert response.status_code == 200
+    assert 'name="source" value="city_inline"' in response.text
+    assert "Track these ACs" in response.text
 
 
 @pytest.mark.asyncio

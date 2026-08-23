@@ -21,7 +21,8 @@ document.getElementById('homepage-alert-form')?.addEventListener('submit', async
     email: form.email.value,
     product_type: 'portable',
     in_stock_only: true,
-    frequency: 'daily'
+    frequency: 'daily',
+    source: 'homepage_hero'
   };
   const msg = document.getElementById('homepage-alert-msg');
   msg.textContent = 'Subscribing...';

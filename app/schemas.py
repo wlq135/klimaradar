@@ -99,6 +99,7 @@ class AlertSubscriptionCreate(BaseModel):
     max_price: float | None = None
     in_stock_only: bool = True
     frequency: str = "immediate"
+    source: str = "direct"
 
     @field_validator("city", "product_type", mode="before")
     @classmethod
@@ -118,6 +119,25 @@ class AlertSubscriptionCreate(BaseModel):
         value = (value or "immediate").lower()
         if value not in {"immediate", "daily"}:
             raise ValueError("frequency must be 'immediate' or 'daily'")
+        return value
+
+    @field_validator("source", mode="before")
+    @classmethod
+    def _valid_source(cls, value):
+        value = (value or "direct").lower().strip()
+        allowed = {
+            "direct",
+            "homepage_hero",
+            "country_inline",
+            "city_inline",
+            "compare_inline",
+            "country_modal",
+            "city_modal",
+            "compare_modal",
+            "empty_results",
+        }
+        if value not in allowed:
+            return "direct"
         return value
 
 

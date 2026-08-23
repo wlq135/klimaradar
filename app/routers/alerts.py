@@ -133,6 +133,7 @@ async def subscribe(
         max_price=payload.max_price,
         in_stock_only=payload.in_stock_only,
         frequency=payload.frequency,
+        source=payload.source,
         verification_token=token,
     )
     session.add(sub)
@@ -247,5 +248,4 @@ async def test_alert(
     if not success:
         raise HTTPException(status_code=500, detail="Failed to send test alert")
     return {"message": f"Test alert sent to {sub.email}"}
-
 
