@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import get_db
-from app.models import Base, PaidCustomer
+from app.models import Base, PaidCustomer, Product
 from app.rate_limit import subscribe_limiter
 from app.routers import alerts, billing, pages
 
@@ -146,6 +146,49 @@ async def test_subscription_source_is_normalized_and_stored(client, db_session):
         )
     )
     assert stored.source == "direct"
+
+
+@pytest.mark.asyncio
+async def test_product_alert_requires_real_product_and_stores_product_id(
+    client, db_session
+):
+    missing = await client.post(
+        "/api/alerts/subscribe",
+        json={
+            "email": "missing-product@example.com",
+            "country": "DE",
+            "product_id": 999999,
+            "source": "listing_card_modal",
+        },
+    )
+    assert missing.status_code == 404
+
+    product = Product(name="Exact Model AC", product_type="portable", btu_max=12000)
+    db_session.add(product)
+    await db_session.commit()
+
+    response = await client.post(
+        "/api/alerts/subscribe",
+        json={
+            "email": "exact-model@example.com",
+            "country": "DE",
+            "product_id": product.id,
+            "source": "listing_card_modal",
+        },
+    )
+
+    assert response.status_code == 200
+    from app.models import AlertSubscription
+
+    subscription = await db_session.scalar(
+        select(AlertSubscription).where(
+            AlertSubscription.email == "exact-model@example.com"
+        )
+    )
+    assert subscription is not None
+    assert subscription.product_id == product.id
+    assert subscription.product_type == "portable"
+    assert subscription.source == "listing_card_modal"
 
 
 @pytest.mark.asyncio

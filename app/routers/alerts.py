@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.cloudflare import get_client_ip
 from app.config import settings
 from app.database import get_db
-from app.models import AlertSubscription
+from app.models import AlertSubscription, Product
 from app.rate_limit import subscribe_limiter
 from app.schemas import AlertSubscriptionCreate
 from app.services.alerter import get_email_backend
@@ -66,12 +66,20 @@ async def subscribe(
     session: AsyncSession = Depends(get_db),
 ):
     await subscribe_limiter.check(_client_ip(request))
+    product = None
+    if payload.product_id is not None:
+        product = await session.get(Product, payload.product_id)
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found")
+
+    product_type = product.product_type if product else payload.product_type
     # Prevent duplicate active subscriptions for the same email + filters.
     stmt = select(AlertSubscription).where(
         AlertSubscription.email == payload.email,
         AlertSubscription.country == payload.country,
         AlertSubscription.city == payload.city,
-        AlertSubscription.product_type == payload.product_type,
+        AlertSubscription.product_type == product_type,
+        AlertSubscription.product_id == payload.product_id,
         AlertSubscription.min_btu == payload.min_btu,
         AlertSubscription.max_price == payload.max_price,
         AlertSubscription.in_stock_only == payload.in_stock_only,
@@ -129,7 +137,8 @@ async def subscribe(
         email=payload.email,
         country=payload.country,
         city=payload.city,
-        product_type=payload.product_type,
+        product_type=product_type,
+        product_id=payload.product_id,
         min_btu=payload.min_btu,
         max_price=payload.max_price,
         in_stock_only=payload.in_stock_only,

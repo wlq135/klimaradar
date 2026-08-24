@@ -41,7 +41,7 @@ from app.seo import (
     get_btu_comparison,
     list_btu_comparisons,
 )
-from app.services.affiliate import tag_url
+from app.services.affiliate import add_amazon_subtag, build_amazon_subtag, tag_url
 from app.services.cache import get_or_compute, public_page_cache
 from app.services.paddle import list_checkout_domains
 from app.services.scraper import run_scrape
@@ -1114,6 +1114,17 @@ async def affiliate_redirect(
     await session.commit()
 
     target = tag_url(listing.retailer.domain, listing.affiliate_url or listing.url)
+    if target:
+        target = add_amazon_subtag(
+            target,
+            build_amazon_subtag(
+                click_id=click.id,
+                country=listing.country,
+                source=click.source,
+                placement=click.placement,
+                position=click.position,
+            ),
+        )
     if not target or not _is_safe_redirect_target(target, listing.retailer):
         target = tag_url(listing.retailer.domain, listing.url)
     if not target or not _is_safe_redirect_target(target, listing.retailer):
@@ -1329,6 +1340,7 @@ async def paddle_checkout_domains(
 async def click_analytics(
     request: Request,
     days: int = Query(30, ge=1, le=90),
+    click_id: int | None = Query(None, ge=1),
     x_admin_api_key: str | None = Header(None, alias="X-Admin-API-Key"),
     session: AsyncSession = Depends(get_db),
 ):
@@ -1344,6 +1356,59 @@ async def click_analytics(
         raise HTTPException(status_code=403, detail="Invalid admin API key")
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    if click_id is not None:
+        click_row = (
+            await session.execute(
+                select(
+                    ClickEvent.id,
+                    ClickEvent.clicked_at,
+                    ClickEvent.source,
+                    ClickEvent.placement,
+                    ClickEvent.position,
+                    ClickEvent.page_ref,
+                    Listing.country,
+                    Product.name.label("product_name"),
+                    Product.btu_min,
+                    Product.btu_max,
+                    Listing.stock_status,
+                    Retailer.name.label("retailer_name"),
+                    Retailer.domain.label("retailer_domain"),
+                )
+                .join(Listing, ClickEvent.listing_id == Listing.id)
+                .join(Product, Listing.product_id == Product.id)
+                .join(Retailer, Listing.retailer_id == Retailer.id)
+                .where(ClickEvent.id == click_id, ClickEvent.clicked_at >= cutoff)
+            )
+        ).mappings().first()
+        if not click_row:
+            raise HTTPException(status_code=404, detail="Click event not found")
+        exact_row = {
+            "click_id": click_row.id,
+            "clicked_at": click_row.clicked_at.isoformat(),
+            "source": click_row.source or "legacy",
+            "placement": click_row.placement or "unknown",
+            "position": click_row.position,
+            "page": click_row.page_ref,
+            "country": click_row.country,
+            "product": click_row.product_name,
+            "btu_min": click_row.btu_min,
+            "btu_max": click_row.btu_max,
+            "stock_status": click_row.stock_status,
+            "retailer": click_row.retailer_name,
+            "retailer_domain": click_row.retailer_domain,
+            "clicks": 1,
+        }
+        return {
+            "days": days,
+            "total_clicks": 1,
+            "by_country": {exact_row["country"]: 1},
+            "by_source": {exact_row["source"]: 1},
+            "by_placement": {exact_row["placement"]: 1},
+            "by_stock_status": {exact_row["stock_status"]: 1},
+            "by_page": {exact_row["page"]: 1} if exact_row["page"] else {},
+            "rows": [exact_row],
+        }
+
     total_stmt = select(func.count(ClickEvent.id)).where(ClickEvent.clicked_at >= cutoff)
     total = await session.scalar(total_stmt) or 0
 
@@ -1472,6 +1537,7 @@ def _listing_row(listing: Listing, product: Product, retailer: Retailer) -> dict
         "retailer_domain": retailer.domain,
         "is_amazon": retailer.domain.lower().startswith("amazon."),
         "country": listing.country,
+        "product_id": product.id,
         "btu_min": product.btu_min,
         "btu_max": product.btu_max,
         "btu_label": _btu_label(product.btu_min, product.btu_max),

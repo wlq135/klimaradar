@@ -312,6 +312,16 @@ async def test_country_page_promotes_cheapest_fresh_in_stock_deals(
     assert payload["rows"][0]["stock_status"] == "in_stock"
     assert payload["rows"][0]["retailer"] == "Amazon Germany"
 
+    exact = await client.get(
+        f"/api/admin/click-analytics?days=7&click_id={events[0].id}",
+        headers={"X-Admin-API-Key": "test-admin-key"},
+    )
+    assert exact.status_code == 200
+    exact_payload = exact.json()
+    assert exact_payload["total_clicks"] == 1
+    assert exact_payload["rows"][0]["click_id"] == events[0].id
+    assert exact_payload["rows"][0]["source"] == "country_top3"
+
 
 @pytest.mark.asyncio
 async def test_comparison_page_promotes_12000_btu_deals(client, db_session):
@@ -475,6 +485,8 @@ async def test_city_page_with_listing_offers_inline_alert_capture(client, db_ses
     assert response.status_code == 200
     assert 'name="source" value="city_inline"' in response.text
     assert "Track these ACs" in response.text
+    assert "Track this model" in response.text
+    assert f"openAlertModal({product.id})" in response.text
 
 
 @pytest.mark.asyncio

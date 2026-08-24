@@ -95,3 +95,52 @@ def tag_url(retailer_domain: str, url: str | None) -> str | None:
     query[param_name] = [tag_value]
     new_query = urlencode(query, doseq=True)
     return urlunparse(parsed._replace(query=new_query))
+
+
+def _safe_subtag_segment(value: str | int | None, fallback: str) -> str:
+    """Keep Amazon's customer-defined subtag short and URL-safe."""
+    text = str(value or fallback).strip().lower()
+    cleaned = "".join(char if char.isalnum() else "-" for char in text)
+    cleaned = "-".join(part for part in cleaned.split("-") if part)
+    return cleaned[:32] or fallback
+
+
+def build_amazon_subtag(
+    *,
+    click_id: int,
+    country: str,
+    source: str | None,
+    placement: str | None,
+    position: int | None,
+) -> str:
+    """Build a compact subtag that can be joined back to ClickEvent.id.
+
+    Amazon reports show customer-defined subtags, but not our database rows.
+    Embedding the click ID lets an Amazon order be joined back to the exact
+    on-site placement without exposing user information.
+    """
+    return "-".join(
+        [
+            "v1",
+            _safe_subtag_segment(click_id, "0"),
+            _safe_subtag_segment(country, "xx"),
+            _safe_subtag_segment(source, "direct"),
+            _safe_subtag_segment(placement, "unknown"),
+            _safe_subtag_segment(position, "0"),
+        ]
+    )[:100]
+
+
+def add_amazon_subtag(url: str | None, subtag: str) -> str | None:
+    """Append an Amazon ``ascsubtag`` without replacing existing parameters."""
+    if not url:
+        return url
+
+    parsed = urlparse(url)
+    domain = _normalize_domain(parsed.netloc)
+    if domain not in _AMAZON_DOMAINS:
+        return url
+
+    query = parse_qs(parsed.query, keep_blank_values=True)
+    query["ascsubtag"] = [subtag[:100]]
+    return urlunparse(parsed._replace(query=urlencode(query, doseq=True)))

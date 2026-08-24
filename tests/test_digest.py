@@ -108,6 +108,50 @@ async def test_immediate_subscriber_receives_email(db_session, sent_emails):
 
 
 @pytest.mark.asyncio
+async def test_product_subscription_only_matches_exact_product(
+    db_session, sent_emails
+):
+    listing = await _seed_listing(db_session)
+    other_product = Product(
+        name="Other AC",
+        product_type="portable",
+        btu_min=12000,
+        btu_max=12000,
+    )
+    other_listing = Listing(
+        product=other_product,
+        retailer=listing.retailer,
+        url="https://testshop.de/other-ac",
+        price=349.99,
+        currency="EUR",
+        stock_status="in_stock",
+        country="DE",
+    )
+    subscription = AlertSubscription(
+        email="exact@example.com",
+        country="DE",
+        product_id=listing.product_id,
+        frequency="immediate",
+        verified=True,
+        active=True,
+    )
+    db_session.add_all([other_product, other_listing, subscription])
+    await db_session.commit()
+
+    exact_count = await notify_subscribers_for_listing(
+        db_session, listing, "back in stock"
+    )
+    other_count = await notify_subscribers_for_listing(
+        db_session, other_listing, "back in stock"
+    )
+
+    assert exact_count == 1
+    assert other_count == 0
+    assert len(sent_emails) == 1
+    assert "Test AC" in sent_emails[0]["subject"]
+
+
+@pytest.mark.asyncio
 async def test_daily_subscriber_gets_queued_not_emailed(db_session, sent_emails):
     listing = await _seed_listing(db_session)
     subscription = AlertSubscription(

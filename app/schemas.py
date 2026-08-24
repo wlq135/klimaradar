@@ -95,6 +95,7 @@ class AlertSubscriptionCreate(BaseModel):
         return value.lower() if isinstance(value, str) else value
     city: str | None = None
     product_type: str | None = "portable"
+    product_id: int | None = Field(default=None, ge=1)
     min_btu: int | None = None
     max_price: float | None = None
     in_stock_only: bool = True
@@ -134,11 +135,17 @@ class AlertSubscriptionCreate(BaseModel):
             "country_modal",
             "city_modal",
             "compare_modal",
+            "listing_card_modal",
             "empty_results",
         }
         if value not in allowed:
             return "direct"
         return value
+
+    @field_validator("product_id", mode="before")
+    @classmethod
+    def _blank_product_id_to_none(cls, value):
+        return None if value in {"", 0, "0"} else value
 
 
 class AlertSubscriptionOut(BaseModel):
@@ -149,6 +156,7 @@ class AlertSubscriptionOut(BaseModel):
     country: str
     city: str | None
     product_type: str | None
+    product_id: int | None = None
     min_btu: int | None
     max_price: float | None
     in_stock_only: bool

@@ -112,9 +112,25 @@ async def test_go_redirect_tags_amazon_url_and_logs_click(client, db_session):
     assert response.status_code in (307, 302)
     location = response.headers["location"]
     assert "tag=klrmrd-21" in location
+    assert "ascsubtag=v1-1-de-direct-unknown-0" in location
 
     click_count = await db_session.scalar(select(func.count(ClickEvent.id)))
     assert click_count == 1
+
+
+def test_amazon_subtag_is_safe_and_bounded():
+    from app.services.affiliate import build_amazon_subtag
+
+    subtag = build_amazon_subtag(
+        click_id=12345,
+        country="DE",
+        source="city/listing weird",
+        placement="listing",
+        position=3,
+    )
+
+    assert subtag == "v1-12345-de-city-listing-weird-listing-3"
+    assert len(subtag) <= 100
 
 
 @pytest.mark.asyncio

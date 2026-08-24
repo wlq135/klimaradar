@@ -104,6 +104,20 @@ async def run_migrations() -> None:
                 )
             )
 
+    def _migrate_alert_subscription_product(sync_conn):
+        result = sync_conn.execute(text("PRAGMA table_info(alert_subscriptions)"))
+        columns = {row[1] for row in result}
+        if "product_id" not in columns:
+            sync_conn.execute(
+                text("ALTER TABLE alert_subscriptions ADD COLUMN product_id INTEGER")
+            )
+        sync_conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_alert_subscriptions_product_id "
+                "ON alert_subscriptions (product_id)"
+            )
+        )
+
     def _migrate_query_indexes(sync_conn):
         existing_tables = {
             row[0]
@@ -127,4 +141,5 @@ async def run_migrations() -> None:
         await conn.run_sync(_migrate_alert_subscriptions)
         await conn.run_sync(_migrate_click_events)
         await conn.run_sync(_migrate_alert_subscription_source)
+        await conn.run_sync(_migrate_alert_subscription_product)
         await conn.run_sync(_migrate_query_indexes)

@@ -95,7 +95,7 @@ async def test_run_migrations_adds_click_and_subscription_attribution(tmp_path, 
             ).fetchall()
         }
 
-    assert {"frequency", "digest_last_sent_at", "source"} <= alert_columns
+    assert {"frequency", "digest_last_sent_at", "source", "product_id"} <= alert_columns
     assert {"placement", "position", "page_ref"} <= click_columns
     assert "ix_click_events_placement" in indexes
     assert "ix_click_events_clicked_at" in indexes
@@ -107,6 +107,7 @@ async def test_run_migrations_adds_click_and_subscription_attribution(tmp_path, 
     assert {
         "ix_products_type_btu_max",
         "ix_price_history_captured_at",
+        "ix_alert_subscriptions_product_id",
     } <= all_indexes
 
     await engine.dispose()

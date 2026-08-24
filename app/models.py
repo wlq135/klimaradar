@@ -180,6 +180,9 @@ class AlertSubscription(Base):
     """User request to be notified when matching listings change."""
 
     __tablename__ = "alert_subscriptions"
+    __table_args__ = (
+        Index("ix_alert_subscriptions_product_id", "product_id"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -188,6 +191,9 @@ class AlertSubscription(Base):
     product_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
     min_btu: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    product_id: Mapped[int | None] = mapped_column(
+        ForeignKey("products.id"), nullable=True
+    )
     in_stock_only: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     verification_token: Mapped[str | None] = mapped_column(String(64), nullable=True)

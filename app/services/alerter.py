@@ -255,7 +255,7 @@ async def notify_subscribers_for_listing(
     Returns:
         Number of alerts sent or queued.
     """
-    # Match by country, city (optional), product type, BTU, price.
+    # Match by country, city (optional), product, product type, BTU, price.
     stmt = select(AlertSubscription).where(
         AlertSubscription.active.is_(True),
         AlertSubscription.verified.is_(True),
@@ -266,6 +266,8 @@ async def notify_subscribers_for_listing(
     sent = 0
     backend = get_email_backend()
     for sub in subs:
+        if sub.product_id and sub.product_id != listing.product_id:
+            continue
         if sub.city:
             listing_city = (listing.city_tag or "").lower()
             if listing_city and listing_city != sub.city.lower():
