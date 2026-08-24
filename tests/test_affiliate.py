@@ -19,6 +19,7 @@ from sqlalchemy.orm import sessionmaker
 from app.database import get_db
 from app.models import Base, ClickEvent, Listing, Product, Retailer
 from app.routers import pages
+from app.rate_limit import affiliate_click_limiter
 
 
 @pytest.fixture
@@ -179,6 +180,31 @@ async def test_go_redirect_blocks_automated_click_before_logging(client, db_sess
     assert response.headers["cache-control"] == "no-store"
     click_count = await db_session.scalar(select(func.count(ClickEvent.id)))
     assert click_count == 0
+
+
+@pytest.mark.asyncio
+async def test_go_redirect_rate_limits_repeated_human_clicks(
+    client, db_session, monkeypatch
+):
+    affiliate_click_limiter._store.clear()
+    monkeypatch.setattr(affiliate_click_limiter, "max_requests", 1)
+    listing = await _create_test_listing(
+        db_session,
+        retailer_name="Amazon Germany",
+        domain="https://www.amazon.de",
+        url="https://www.amazon.de/dp/B08RATELIMIT",
+    )
+    headers = {"User-Agent": "Mozilla/5.0 Chrome/126.0"}
+
+    first = await client.get(
+        f"/go/{listing.id}", headers=headers, follow_redirects=False
+    )
+    second = await client.get(
+        f"/go/{listing.id}", headers=headers, follow_redirects=False
+    )
+
+    assert first.status_code in (307, 302)
+    assert second.status_code == 429
 
 
 @pytest.mark.asyncio

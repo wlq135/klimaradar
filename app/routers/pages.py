@@ -19,7 +19,7 @@ from app.cloudflare import get_client_ip
 from app.config import settings
 from app.database import get_db
 from app.models import AlertSubscription, ClickEvent, Listing, Product, Retailer
-from app.rate_limit import admin_scrape_limiter
+from app.rate_limit import admin_scrape_limiter, affiliate_click_limiter
 from app.schemas import ScrapeIngestIn, SearchFilters, StatsOut
 from app.seo import (
     COUNTRY_NAMES,
@@ -1090,6 +1090,8 @@ async def affiliate_redirect(
             status_code=403,
             headers={"Cache-Control": "no-store"},
         )
+
+    await affiliate_click_limiter.check(_client_ip(request))
 
     stmt = (
         select(Listing)

@@ -54,3 +54,7 @@ feedback_limiter = RateLimiter(max_requests=3, window_seconds=60)
 
 # 10 checkout attempts per minute per IP.
 billing_limiter = RateLimiter(max_requests=10, window_seconds=60)
+
+# Affiliate redirects are cheap for humans but attractive to scripts. Keep a
+# per-IP ceiling as a second defense behind the obvious-bot UA filter.
+affiliate_click_limiter = RateLimiter(max_requests=30, window_seconds=60)
