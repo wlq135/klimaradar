@@ -175,6 +175,26 @@ async def test_health_reports_24h_affiliate_click_totals(client, db_session):
             source="city_inline",
         )
     )
+    db_session.add(
+        AlertSubscription(
+            email="pending@example.com",
+            country="DE",
+            verified=False,
+            active=True,
+            source="listing_card_modal",
+            created_at=now - timedelta(hours=2),
+        )
+    )
+    db_session.add(
+        AlertSubscription(
+            email="old-pending@example.com",
+            country="DE",
+            verified=False,
+            active=True,
+            source="city_inline",
+            created_at=now - timedelta(days=8),
+        )
+    )
     await db_session.commit()
 
     response = await client.get("/api/health")
@@ -195,6 +215,11 @@ async def test_health_reports_24h_affiliate_click_totals(client, db_session):
     assert payload["affiliate_clicks_24h_likely_human_by_placement"] == {"top3": 2}
     assert payload["affiliate_clicks_24h_likely_automated"] == 1
     assert payload["active_subscriptions_by_source"] == {"city_inline": 1}
+    assert payload["pending_subscriptions_7d_by_source"] == {
+        "listing_card_modal": 1
+    }
+    assert payload["pending_subscriptions_7d"] == 1
+    assert payload["subscription_confirmation_rate"] == 0.5
 
 
 @pytest.mark.asyncio

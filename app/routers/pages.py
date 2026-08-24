@@ -1222,6 +1222,29 @@ async def health(session: AsyncSession = Depends(get_db)):
             subscriptions_by_source = {
                 source or "direct": count for source, count in subscription_rows
             }
+            pending_cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+            pending_rows = (
+                (
+                    await session.execute(
+                        select(
+                            AlertSubscription.source,
+                            func.count(AlertSubscription.id),
+                        )
+                        .where(
+                            AlertSubscription.active.is_(True),
+                            AlertSubscription.verified.is_(False),
+                            AlertSubscription.created_at >= pending_cutoff,
+                        )
+                        .group_by(AlertSubscription.source)
+                    )
+                )
+                .all()
+            )
+            pending_by_source = {
+                source or "direct": count for source, count in pending_rows
+            }
+            pending_total = sum(pending_by_source.values())
+            confirmed_total = sum(subscriptions_by_source.values())
             return {
                 "status": "ok",
                 "listings": listing_count,
@@ -1234,6 +1257,16 @@ async def health(session: AsyncSession = Depends(get_db)):
                 "affiliate_clicks_24h_likely_human_by_placement": human_clicks_by_placement,
                 "affiliate_clicks_24h_likely_automated": likely_automated_count,
                 "active_subscriptions_by_source": subscriptions_by_source,
+                "pending_subscriptions_7d_by_source": pending_by_source,
+                "pending_subscriptions_7d": pending_total,
+                "subscription_confirmation_rate": (
+                    round(
+                        confirmed_total / (confirmed_total + pending_total),
+                        4,
+                    )
+                    if confirmed_total + pending_total
+                    else 0
+                ),
                 "email_backend": email_backend_name,
                 "email_error": email_error,
             }
