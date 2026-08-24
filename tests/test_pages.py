@@ -96,6 +96,7 @@ async def test_search_hides_listings_not_seen_for_48_hours(client, db_session):
     response = await client.get("/search?country=DE")
 
     assert response.status_code == 200
+    assert "s-maxage=60" in response.headers["cache-control"]
     assert "FRESH" not in response.text
     assert "12,000 BTU Portable Air Conditioner" in response.text
     assert response.text.count('href="/go/') == 1
@@ -439,6 +440,14 @@ async def test_city_page_renders_localized_german(client):
     assert 'hreflang="de-DE"' in text
     assert 'hreflang="x-default"' in text
     assert '"@type": "BreadcrumbList"' in text
+
+
+@pytest.mark.asyncio
+async def test_filtered_search_is_not_publicly_cached(client):
+    response = await client.get("/search?country=DE&min_btu=12000")
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
 
 
 @pytest.mark.asyncio

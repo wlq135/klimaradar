@@ -42,6 +42,7 @@ from app.seo import (
     list_btu_comparisons,
 )
 from app.services.affiliate import tag_url
+from app.services.cache import get_or_compute, public_page_cache
 from app.services.paddle import list_checkout_domains
 from app.services.scraper import run_scrape
 from app.services.stock_monitor import upsert_listings
@@ -363,6 +364,14 @@ def _template_context(request: Request, **extra) -> dict:
     return extra
 
 
+def _public_cache(response, ttl_seconds: int = 60):
+    """Let Cloudflare cache anonymous SEO pages for a short, safe window."""
+    response.headers["Cache-Control"] = (
+        f"public, max-age=30, s-maxage={ttl_seconds}, stale-while-revalidate=300"
+    )
+    return response
+
+
 def _btu_label(btu_min: int | None, btu_max: int | None) -> str | None:
     if btu_min is None and btu_max is None:
         return None
@@ -474,7 +483,7 @@ async def index(request: Request, session: AsyncSession = Depends(get_db)):
             }
         )
 
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request,
         "index.html",
         _template_context(
@@ -490,6 +499,7 @@ async def index(request: Request, session: AsyncSession = Depends(get_db)):
             canonical_url=canonical_url,
         ),
     )
+    return _public_cache(response, ttl_seconds=60)
 
 
 @router.api_route("/pricing", methods=["GET", "HEAD"], response_class=HTMLResponse)
@@ -712,7 +722,7 @@ async def search(
         top_deals_ui = top_deals_ui | _TOP_DEALS_UI_COPY["en"]
     listing_source = "city_listing" if city else "country_listing"
     subscription_context = "city" if city else "country"
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request,
         "search.html",
         _template_context(
@@ -747,6 +757,10 @@ async def search(
             faq_jsonld=json.dumps(faq_jsonld, ensure_ascii=False) if faq_jsonld else None,
         ),
     )
+    if has_filter_params:
+        response.headers["Cache-Control"] = "no-store"
+        return response
+    return _public_cache(response, ttl_seconds=60)
 
 
 @router.api_route(
@@ -807,7 +821,7 @@ async def btu_comparison_page(
     faq_jsonld = build_faq_jsonld(comparison["faqs"])
     article_jsonld = build_comparison_article_jsonld(base, comparison)
 
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request,
         "search.html",
         _template_context(
@@ -843,6 +857,7 @@ async def btu_comparison_page(
             seo_mode=True,
         ),
     )
+    return _public_cache(response, ttl_seconds=60)
 
 
 @router.api_route(
@@ -867,7 +882,7 @@ async def country_buying_guide(request: Request, country: str):
     listing_ui = _listing_ui(guide["country"])
     btu_comparison = get_btu_comparison(guide["country"])
 
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request,
         "guide.html",
         _template_context(
@@ -886,6 +901,7 @@ async def country_buying_guide(request: Request, country: str):
             faq_jsonld=json.dumps(faq_jsonld, ensure_ascii=False),
         ),
     )
+    return _public_cache(response, ttl_seconds=60)
 
 
 @router.api_route(
@@ -929,7 +945,7 @@ async def city_seo_page(
     country_guide = get_country_guide(country_code)
     btu_comparison = get_btu_comparison(country_code)
 
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request,
         "search.html",
         _template_context(
@@ -957,6 +973,7 @@ async def city_seo_page(
             seo_mode=True,
         ),
     )
+    return _public_cache(response, ttl_seconds=60)
 
 
 _ALLOWED_CLICK_SOURCES = {
@@ -1019,6 +1036,8 @@ def _same_site_page_ref(request: Request) -> str | None:
 def _is_likely_automated_click(user_agent: str | None) -> bool:
     """Classify obvious link checkers and crawlers without exposing raw UAs."""
     normalized = (user_agent or "").lower()
+    if not normalized:
+        return True
     markers = (
         "bot",
         "crawl",
@@ -1042,6 +1061,19 @@ def _is_likely_automated_click(user_agent: str | None) -> bool:
         "discordbot",
         "telegrambot",
         "whatsapp",
+        "python-requests",
+        "axios",
+        "node-fetch",
+        "httpclient",
+        "apache-httpclient",
+        "phantomjs",
+        "selenium",
+        "puppeteer",
+        "playwright",
+        "semrush",
+        "ahrefs",
+        "mj12bot",
+        "dotbot",
     )
     return any(marker in normalized for marker in markers)
 
@@ -1052,6 +1084,13 @@ async def affiliate_redirect(
     listing_id: int,
     session: AsyncSession = Depends(get_db),
 ):
+    if _is_likely_automated_click(request.headers.get("user-agent")):
+        return Response(
+            "Automated outbound clicks are blocked.",
+            status_code=403,
+            headers={"Cache-Control": "no-store"},
+        )
+
     stmt = (
         select(Listing)
         .options(selectinload(Listing.retailer))
@@ -1105,77 +1144,90 @@ async def health(session: AsyncSession = Depends(get_db)):
         pass
 
     try:
-        listing_count = await session.scalar(select(func.count(Listing.id)))
-        retailer_count = await session.scalar(select(func.count(Retailer.id)))
-        click_cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
-        click_rows = (
-            await session.execute(
-                select(
-                    ClickEvent.source,
-                    ClickEvent.placement,
-                    ClickEvent.user_agent,
-                    func.count(ClickEvent.id),
+        async def compute() -> dict:
+            listing_count = await session.scalar(select(func.count(Listing.id)))
+            retailer_count = await session.scalar(select(func.count(Retailer.id)))
+            click_cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+            click_rows = (
+                (
+                    await session.execute(
+                        select(
+                            ClickEvent.source,
+                            ClickEvent.placement,
+                            ClickEvent.user_agent,
+                            func.count(ClickEvent.id),
+                        )
+                        .where(ClickEvent.clicked_at >= click_cutoff)
+                        .group_by(
+                            ClickEvent.source,
+                            ClickEvent.placement,
+                            ClickEvent.user_agent,
+                        )
+                    )
                 )
-                .where(ClickEvent.clicked_at >= click_cutoff)
-                .group_by(ClickEvent.source, ClickEvent.placement, ClickEvent.user_agent)
+                .all()
             )
-        ).all()
-        click_count = 0
-        likely_human_count = 0
-        likely_automated_count = 0
-        clicks_by_source = {}
-        human_clicks_by_source = {}
-        clicks_by_placement = {}
-        human_clicks_by_placement = {}
-        for source, placement, user_agent, count in click_rows:
-            source_name = source or "legacy"
-            placement_name = placement or "unknown"
-            automated = _is_likely_automated_click(user_agent)
-            click_count += count
-            clicks_by_source[source_name] = (
-                clicks_by_source.get(source_name, 0) + count
-            )
-            clicks_by_placement[placement_name] = (
-                clicks_by_placement.get(placement_name, 0) + count
-            )
-            if automated:
-                likely_automated_count += count
-            else:
-                likely_human_count += count
-                human_clicks_by_source[source_name] = (
-                    human_clicks_by_source.get(source_name, 0) + count
+            click_count = 0
+            likely_human_count = 0
+            likely_automated_count = 0
+            clicks_by_source = {}
+            human_clicks_by_source = {}
+            clicks_by_placement = {}
+            human_clicks_by_placement = {}
+            for source, placement, user_agent, count in click_rows:
+                source_name = source or "legacy"
+                placement_name = placement or "unknown"
+                automated = _is_likely_automated_click(user_agent)
+                click_count += count
+                clicks_by_source[source_name] = (
+                    clicks_by_source.get(source_name, 0) + count
                 )
-                human_clicks_by_placement[placement_name] = (
-                    human_clicks_by_placement.get(placement_name, 0) + count
+                clicks_by_placement[placement_name] = (
+                    clicks_by_placement.get(placement_name, 0) + count
                 )
-        subscription_rows = (
-            await session.execute(
-                select(AlertSubscription.source, func.count(AlertSubscription.id))
-                .where(
-                    AlertSubscription.active.is_(True),
-                    AlertSubscription.verified.is_(True),
+                if automated:
+                    likely_automated_count += count
+                else:
+                    likely_human_count += count
+                    human_clicks_by_source[source_name] = (
+                        human_clicks_by_source.get(source_name, 0) + count
+                    )
+                    human_clicks_by_placement[placement_name] = (
+                        human_clicks_by_placement.get(placement_name, 0) + count
+                    )
+            subscription_rows = (
+                (
+                    await session.execute(
+                        select(AlertSubscription.source, func.count(AlertSubscription.id))
+                        .where(
+                            AlertSubscription.active.is_(True),
+                            AlertSubscription.verified.is_(True),
+                        )
+                        .group_by(AlertSubscription.source)
+                    )
                 )
-                .group_by(AlertSubscription.source)
+                .all()
             )
-        ).all()
-        subscriptions_by_source = {
-            source or "direct": count for source, count in subscription_rows
-        }
-        return {
-            "status": "ok",
-            "listings": listing_count,
-            "retailers": retailer_count,
-            "affiliate_clicks_24h": click_count or 0,
-            "affiliate_clicks_24h_by_source": clicks_by_source,
-            "affiliate_clicks_24h_by_placement": clicks_by_placement,
-            "affiliate_clicks_24h_likely_human": likely_human_count,
-            "affiliate_clicks_24h_likely_human_by_source": human_clicks_by_source,
-            "affiliate_clicks_24h_likely_human_by_placement": human_clicks_by_placement,
-            "affiliate_clicks_24h_likely_automated": likely_automated_count,
-            "active_subscriptions_by_source": subscriptions_by_source,
-            "email_backend": email_backend_name,
-            "email_error": email_error,
-        }
+            subscriptions_by_source = {
+                source or "direct": count for source, count in subscription_rows
+            }
+            return {
+                "status": "ok",
+                "listings": listing_count,
+                "retailers": retailer_count,
+                "affiliate_clicks_24h": click_count or 0,
+                "affiliate_clicks_24h_by_source": clicks_by_source,
+                "affiliate_clicks_24h_by_placement": clicks_by_placement,
+                "affiliate_clicks_24h_likely_human": likely_human_count,
+                "affiliate_clicks_24h_likely_human_by_source": human_clicks_by_source,
+                "affiliate_clicks_24h_likely_human_by_placement": human_clicks_by_placement,
+                "affiliate_clicks_24h_likely_automated": likely_automated_count,
+                "active_subscriptions_by_source": subscriptions_by_source,
+                "email_backend": email_backend_name,
+                "email_error": email_error,
+            }
+
+        return await get_or_compute("public:health:v1", 15, compute)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Database error: {exc}")
 
@@ -1238,6 +1290,7 @@ async def ingest_worker_scrape(
         for snapshot in payload.snapshots
     ]
     stats = await upsert_listings(session, retailer.id, payload.country, snapshots)
+    public_page_cache.clear()
     return {
         "retailer": retailer.name,
         "country": payload.country,
@@ -1371,35 +1424,38 @@ async def click_analytics(
 
 
 async def _get_stats(session: AsyncSession) -> StatsOut:
-    total = await session.scalar(select(func.count(Listing.id)))
+    async def compute() -> StatsOut:
+        total = await session.scalar(select(func.count(Listing.id)))
 
-
-    # Count only listings verified in the last 48h so the
-    # headline "In stock now" number reflects real availability, not stale
-    # data that may already be gone from the retailer.
-    fresh_cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
-    in_stock = await session.scalar(
-        select(func.count(Listing.id)).where(
-            Listing.stock_status == "in_stock",
-            Listing.last_seen_at >= fresh_cutoff,
+        # Count only listings verified in the last 48h so the
+        # headline "In stock now" number reflects real availability, not stale
+        # data that may already be gone from the retailer.
+        fresh_cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
+        in_stock = await session.scalar(
+            select(func.count(Listing.id)).where(
+                Listing.stock_status == "in_stock",
+                Listing.last_seen_at >= fresh_cutoff,
+            )
         )
-    )
-    countries = (
-        await session.scalars(select(Listing.country).distinct())
-    ).all()
-    from app.models import AlertSubscription
+        countries = (
+            await session.scalars(select(Listing.country).distinct())
+        ).all()
 
-    active_subs = await session.scalar(
-        select(func.count(AlertSubscription.id)).where(
-            AlertSubscription.active.is_(True), AlertSubscription.verified.is_(True)
+        active_subs = await session.scalar(
+            select(func.count(AlertSubscription.id)).where(
+                AlertSubscription.active.is_(True),
+                AlertSubscription.verified.is_(True),
+            )
         )
-    )
-    return StatsOut(
-        total_listings=total or 0,
-        in_stock_listings=in_stock or 0,
-        active_subscriptions=active_subs or 0,
-        countries=[c for c in countries if c],
-    )
+        return StatsOut(
+            total_listings=total or 0,
+            in_stock_listings=in_stock or 0,
+            active_subscriptions=active_subs or 0,
+            countries=[c for c in countries if c],
+        )
+
+    return await get_or_compute("public:stats:v1", 60, compute)
+
 
 def _listing_row(listing: Listing, product: Product, retailer: Retailer) -> dict:
     """Serialize one retailer offer for templates and structured data."""
@@ -1433,30 +1489,34 @@ async def _fetch_top_deals(
     min_btu: int | None = None,
 ) -> list[dict]:
     """Return the cheapest fresh, in-stock portable AC offers for a market."""
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
-    stmt = (
-        select(Listing, Product, Retailer)
-        .join(Product, Listing.product_id == Product.id)
-        .join(Retailer, Listing.retailer_id == Retailer.id)
-        .where(Listing.country == country.upper())
-        .where(Listing.stock_status == "in_stock")
-        .where(Listing.price.is_not(None))
-        .where(Listing.last_seen_at >= cutoff)
-        .where(Product.product_type == "portable")
-    )
-    if min_btu:
-        stmt = stmt.where(Product.btu_max >= min_btu)
-    stmt = stmt.order_by(
-        Listing.price.asc().nullslast(),
-        Retailer.domain.ilike("amazon.%").desc(),
-        Listing.last_seen_at.desc().nullslast(),
-    )
-    stmt = stmt.limit(limit)
-    result = await session.execute(stmt)
-    return [
-        _listing_row(listing, product, retailer)
-        for listing, product, retailer in result.unique().all()
-    ]
+    async def compute() -> list[dict]:
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
+        stmt = (
+            select(Listing, Product, Retailer)
+            .join(Product, Listing.product_id == Product.id)
+            .join(Retailer, Listing.retailer_id == Retailer.id)
+            .where(Listing.country == country.upper())
+            .where(Listing.stock_status == "in_stock")
+            .where(Listing.price.is_not(None))
+            .where(Listing.last_seen_at >= cutoff)
+            .where(Product.product_type == "portable")
+        )
+        if min_btu:
+            stmt = stmt.where(Product.btu_max >= min_btu)
+        stmt = stmt.order_by(
+            Listing.price.asc().nullslast(),
+            Retailer.domain.ilike("amazon.%").desc(),
+            Listing.last_seen_at.desc().nullslast(),
+        )
+        stmt = stmt.limit(limit)
+        result = await session.execute(stmt)
+        return [
+            _listing_row(listing, product, retailer)
+            for listing, product, retailer in result.all()
+        ]
+
+    key = f"public:top-deals:v1:{country.upper()}:{min_btu or 0}:{limit}"
+    return await get_or_compute(key, 90, compute)
 
 
 async def _fetch_filtered_listings(
@@ -1466,15 +1526,40 @@ async def _fetch_filtered_listings(
     limit: int | None = None,
     offset: int = 0,
 ) -> tuple[list[dict], int]:
-    # Marketplace inventory changes too quickly to show indefinitely stale rows.
-    stale_cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
-    stmt = (
-        select(Listing, Product, Retailer)
-        .join(Product, Listing.product_id == Product.id)
-        .join(Retailer, Listing.retailer_id == Retailer.id)
-        .where(Listing.country == filters.country)
-        .where(Listing.last_seen_at >= stale_cutoff)
-        .order_by(
+    async def compute() -> tuple[list[dict], int]:
+        # Marketplace inventory changes too quickly to show indefinitely stale rows.
+        stale_cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
+        base_stmt = (
+            select(Listing, Product, Retailer)
+            .join(Product, Listing.product_id == Product.id)
+            .join(Retailer, Listing.retailer_id == Retailer.id)
+            .where(Listing.country == filters.country)
+            .where(Listing.last_seen_at >= stale_cutoff)
+        )
+
+        if filters.product_type:
+            base_stmt = base_stmt.where(Product.product_type == filters.product_type)
+        if filters.min_btu:
+            base_stmt = base_stmt.where(
+                (Product.btu_max >= filters.min_btu) | (Product.btu_max.is_(None))
+            )
+        if filters.max_price:
+            base_stmt = base_stmt.where(
+                (Listing.price <= filters.max_price) | (Listing.price.is_(None))
+            )
+        if filters.in_stock_only:
+            base_stmt = base_stmt.where(Listing.stock_status == "in_stock")
+        if filters.q:
+            like = f"%{filters.q}%"
+            base_stmt = base_stmt.where(Product.name.ilike(like))
+
+        count_stmt = (
+            select(func.count())
+            .select_from(base_stmt.subquery())
+        )
+        total_count = (await session.execute(count_stmt)).scalar() or 0
+
+        stmt = base_stmt.order_by(
             # In-stock first. Amazon follows because it has the strongest
             # purchase-trust signal and directly supports the Associates goal;
             # then freshest data and cheapest price.
@@ -1483,33 +1568,18 @@ async def _fetch_filtered_listings(
             Listing.last_seen_at.desc().nullslast(),
             Listing.price.asc().nullslast(),
         )
+        if limit is not None:
+            stmt = stmt.limit(limit).offset(offset)
+
+        result = await session.execute(stmt)
+        rows = [
+            _listing_row(listing, product, retailer)
+            for listing, product, retailer in result.all()
+        ]
+        return rows, total_count
+
+    key = (
+        f"public:listings:v1:{filters.model_dump_json()}"
+        f":limit={limit}:offset={offset}"
     )
-
-    if filters.product_type:
-        stmt = stmt.where(Product.product_type == filters.product_type)
-    if filters.min_btu:
-        stmt = stmt.where(
-            (Product.btu_max >= filters.min_btu) | (Product.btu_max.is_(None))
-        )
-    if filters.max_price:
-        stmt = stmt.where(
-            (Listing.price <= filters.max_price) | (Listing.price.is_(None))
-        )
-    if filters.in_stock_only:
-        stmt = stmt.where(Listing.stock_status == "in_stock")
-    if filters.q:
-        like = f"%{filters.q}%"
-        stmt = stmt.where(Product.name.ilike(like))
-
-    # Count total matching rows (before pagination).
-    count_stmt = select(func.count()).select_from(stmt.subquery())
-    total_count = (await session.execute(count_stmt)).scalar() or 0
-
-    if limit is not None:
-        stmt = stmt.limit(limit).offset(offset)
-
-    result = await session.execute(stmt)
-    rows = []
-    for listing, product, retailer in result.unique().all():
-        rows.append(_listing_row(listing, product, retailer))
-    return rows, total_count
+    return await get_or_compute(key, 60, compute)

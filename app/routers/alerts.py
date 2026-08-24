@@ -16,6 +16,7 @@ from app.models import AlertSubscription
 from app.rate_limit import subscribe_limiter
 from app.schemas import AlertSubscriptionCreate
 from app.services.alerter import get_email_backend
+from app.services.cache import public_page_cache
 from app.services.creem import can_create_alert, create_checkout, record_checkout_session
 from app.templating import templates
 
@@ -138,6 +139,7 @@ async def subscribe(
     )
     session.add(sub)
     await session.commit()
+    public_page_cache.clear()
 
     success = await _send_confirmation_email(payload.email, token)
     if not success:
@@ -168,6 +170,7 @@ async def confirm(
     sub.verified = True
     sub.active = True
     await session.commit()
+    public_page_cache.clear()
 
     return templates.TemplateResponse(
         request,
@@ -197,6 +200,7 @@ async def unsubscribe(
 
     sub.active = False
     await session.commit()
+    public_page_cache.clear()
 
     return templates.TemplateResponse(
         request,
@@ -248,4 +252,3 @@ async def test_alert(
     if not success:
         raise HTTPException(status_code=500, detail="Failed to send test alert")
     return {"message": f"Test alert sent to {sub.email}"}
-

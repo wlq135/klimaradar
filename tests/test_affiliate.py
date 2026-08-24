@@ -104,7 +104,9 @@ async def test_go_redirect_tags_amazon_url_and_logs_click(client, db_session):
     )
 
     response = await client.get(
-        f"/go/{listing.id}", follow_redirects=False
+        f"/go/{listing.id}",
+        headers={"User-Agent": "Mozilla/5.0 Chrome/126.0"},
+        follow_redirects=False,
     )
 
     assert response.status_code in (307, 302)
@@ -143,6 +145,27 @@ async def test_go_redirect_records_bounded_attribution(client, db_session):
 
 
 @pytest.mark.asyncio
+async def test_go_redirect_blocks_automated_click_before_logging(client, db_session):
+    listing = await _create_test_listing(
+        db_session,
+        retailer_name="Amazon Germany",
+        domain="https://www.amazon.de",
+        url="https://www.amazon.de/dp/B08BOTBLOCK",
+    )
+
+    response = await client.get(
+        f"/go/{listing.id}?source=country_listing&placement=listing&position=1",
+        headers={"User-Agent": "Python-requests/2.32"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 403
+    assert response.headers["cache-control"] == "no-store"
+    click_count = await db_session.scalar(select(func.count(ClickEvent.id)))
+    assert click_count == 0
+
+
+@pytest.mark.asyncio
 async def test_go_redirect_ignores_untrusted_attribution(client, db_session):
     listing = await _create_test_listing(
         db_session,
@@ -153,7 +176,10 @@ async def test_go_redirect_ignores_untrusted_attribution(client, db_session):
 
     response = await client.get(
         f"/go/{listing.id}?source=city_listing&placement=hero&position=999",
-        headers={"Referer": "https://evil.example.com/products"},
+        headers={
+            "User-Agent": "Mozilla/5.0 Chrome/126.0",
+            "Referer": "https://evil.example.com/products",
+        },
         follow_redirects=False,
     )
 
@@ -181,7 +207,11 @@ async def test_go_redirect_tags_amazon_belgium_marketplace_url(
         country="BE",
     )
 
-    response = await client.get(f"/go/{listing.id}", follow_redirects=False)
+    response = await client.get(
+        f"/go/{listing.id}",
+        headers={"User-Agent": "Mozilla/5.0 Chrome/126.0"},
+        follow_redirects=False,
+    )
 
     assert response.status_code in (307, 302)
     assert "tag=klrmrd-be-21" in response.headers["location"]
@@ -197,7 +227,9 @@ async def test_go_redirect_tags_mediamarkt_url(client, db_session):
     )
 
     response = await client.get(
-        f"/go/{listing.id}", follow_redirects=False
+        f"/go/{listing.id}",
+        headers={"User-Agent": "Mozilla/5.0 Chrome/126.0"},
+        follow_redirects=False,
     )
 
     assert response.status_code in (307, 302)
@@ -207,5 +239,9 @@ async def test_go_redirect_tags_mediamarkt_url(client, db_session):
 
 @pytest.mark.asyncio
 async def test_go_redirect_returns_404_for_missing_listing(client, db_session):
-    response = await client.get("/go/999999", follow_redirects=False)
+    response = await client.get(
+        "/go/999999",
+        headers={"User-Agent": "Mozilla/5.0 Chrome/126.0"},
+        follow_redirects=False,
+    )
     assert response.status_code == 404

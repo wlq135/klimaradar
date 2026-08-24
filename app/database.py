@@ -104,7 +104,27 @@ async def run_migrations() -> None:
                 )
             )
 
+    def _migrate_query_indexes(sync_conn):
+        existing_tables = {
+            row[0]
+            for row in sync_conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table'")
+            )
+        }
+        index_statements = (
+            ("listings", "CREATE INDEX IF NOT EXISTS ix_listings_country_last_seen ON listings (country, last_seen_at)"),
+            ("listings", "CREATE INDEX IF NOT EXISTS ix_listings_country_stock_last_seen ON listings (country, stock_status, last_seen_at)"),
+            ("listings", "CREATE INDEX IF NOT EXISTS ix_listings_last_seen_stock ON listings (last_seen_at, stock_status)"),
+            ("products", "CREATE INDEX IF NOT EXISTS ix_products_type_btu_max ON products (product_type, btu_max)"),
+            ("price_history", "CREATE INDEX IF NOT EXISTS ix_price_history_captured_at ON price_history (captured_at)"),
+            ("click_events", "CREATE INDEX IF NOT EXISTS ix_click_events_clicked_at ON click_events (clicked_at)"),
+        )
+        for table_name, statement in index_statements:
+            if table_name in existing_tables:
+                sync_conn.execute(text(statement))
+
     async with engine.begin() as conn:
         await conn.run_sync(_migrate_alert_subscriptions)
         await conn.run_sync(_migrate_click_events)
         await conn.run_sync(_migrate_alert_subscription_source)
+        await conn.run_sync(_migrate_query_indexes)

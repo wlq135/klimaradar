@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -50,6 +51,9 @@ class Product(Base):
     """A canonical product (e.g. Midea 9000 BTU portable AC)."""
 
     __tablename__ = "products"
+    __table_args__ = (
+        Index("ix_products_type_btu_max", "product_type", "btu_max"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -70,7 +74,7 @@ class Product(Base):
     )
 
     listings: Mapped[list["Listing"]] = relationship(
-        "Listing", back_populates="product", lazy="selectin"
+        "Listing", back_populates="product", lazy="raise"
     )
 
 
@@ -92,7 +96,7 @@ class Retailer(Base):
     )
 
     listings: Mapped[list["Listing"]] = relationship(
-        "Listing", back_populates="retailer", lazy="selectin"
+        "Listing", back_populates="retailer", lazy="raise"
     )
 
 
@@ -100,6 +104,16 @@ class Listing(Base):
     """A specific retailer offering for a product."""
 
     __tablename__ = "listings"
+    __table_args__ = (
+        Index("ix_listings_country_last_seen", "country", "last_seen_at"),
+        Index(
+            "ix_listings_country_stock_last_seen",
+            "country",
+            "stock_status",
+            "last_seen_at",
+        ),
+        Index("ix_listings_last_seen_stock", "last_seen_at", "stock_status"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     product_id: Mapped[int] = mapped_column(
@@ -133,7 +147,7 @@ class Listing(Base):
     product: Mapped["Product"] = relationship("Product", back_populates="listings")
     retailer: Mapped["Retailer"] = relationship("Retailer", back_populates="listings")
     price_history: Mapped[list["PriceHistory"]] = relationship(
-        "PriceHistory", back_populates="listing", lazy="selectin"
+        "PriceHistory", back_populates="listing", lazy="raise"
     )
 
 
@@ -141,6 +155,9 @@ class PriceHistory(Base):
     """Snapshot of a listing's price and stock status over time."""
 
     __tablename__ = "price_history"
+    __table_args__ = (
+        Index("ix_price_history_captured_at", "captured_at"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     listing_id: Mapped[int] = mapped_column(

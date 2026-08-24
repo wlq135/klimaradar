@@ -28,6 +28,39 @@ async def test_run_migrations_adds_click_and_subscription_attribution(tmp_path, 
         await conn.execute(
             text(
                 """
+                CREATE TABLE products (
+                    id INTEGER PRIMARY KEY,
+                    product_type VARCHAR(20),
+                    btu_max INTEGER
+                )
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                CREATE TABLE listings (
+                    id INTEGER PRIMARY KEY,
+                    country VARCHAR(2),
+                    stock_status VARCHAR(20),
+                    last_seen_at DATETIME
+                )
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                CREATE TABLE price_history (
+                    id INTEGER PRIMARY KEY,
+                    captured_at DATETIME
+                )
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
                 CREATE TABLE click_events (
                     id INTEGER PRIMARY KEY,
                     listing_id INTEGER NOT NULL,
@@ -55,9 +88,25 @@ async def test_run_migrations_adds_click_and_subscription_attribution(tmp_path, 
                 await conn.execute(text("PRAGMA index_list(click_events)"))
             ).fetchall()
         }
+        all_indexes = {
+            row[0]
+            for row in (
+                await conn.execute(text("SELECT name FROM sqlite_master WHERE type='index'"))
+            ).fetchall()
+        }
 
     assert {"frequency", "digest_last_sent_at", "source"} <= alert_columns
     assert {"placement", "position", "page_ref"} <= click_columns
     assert "ix_click_events_placement" in indexes
+    assert "ix_click_events_clicked_at" in indexes
+    assert {
+        "ix_listings_country_last_seen",
+        "ix_listings_country_stock_last_seen",
+        "ix_listings_last_seen_stock",
+    } <= all_indexes
+    assert {
+        "ix_products_type_btu_max",
+        "ix_price_history_captured_at",
+    } <= all_indexes
 
     await engine.dispose()
