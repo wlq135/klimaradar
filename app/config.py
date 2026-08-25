@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     worker_api_base: str = ""
     worker_api_key: str = ""
     worker_country: str = ""
+    # Chromium/Playwright memory can fragment over long-running worker
+    # processes. Replace the process periodically without losing the container.
+    worker_restart_cycles: int = 3
 
     amazon_de_affiliate_tag: str = ""
     amazon_uk_affiliate_tag: str = ""

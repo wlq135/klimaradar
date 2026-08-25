@@ -240,3 +240,35 @@ async def test_worker_posts_normalized_payload(monkeypatch):
     assert payload["retailer_name"] == "Amazon Germany"
     assert payload["queries"] == ["portable air conditioner"]
     assert payload["snapshots"][0]["sku"] == "B0WORKERPAYLOAD"
+
+
+@pytest.mark.asyncio
+async def test_worker_recycles_process_after_configured_cycles(monkeypatch):
+    from app import worker
+    from app.config import settings
+
+    completed_cycles = []
+    sleeps = []
+    restarts = []
+
+    async def fake_run_worker_once():
+        completed_cycles.append(len(completed_cycles) + 1)
+        return {}
+
+    async def fake_sleep(seconds):
+        sleeps.append(seconds)
+
+    def fake_restart():
+        restarts.append(True)
+
+    monkeypatch.setattr(settings, "scraper_interval_minutes", 0)
+    monkeypatch.setattr(settings, "worker_restart_cycles", 2)
+    monkeypatch.setattr(worker, "run_worker_once", fake_run_worker_once)
+    monkeypatch.setattr(worker.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(worker, "_restart_worker_process", fake_restart)
+
+    await worker.run_worker_forever()
+
+    assert completed_cycles == [1, 2]
+    assert sleeps == [60, 60]
+    assert restarts == [True]
