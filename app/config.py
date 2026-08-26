@@ -124,6 +124,9 @@ class Settings(BaseSettings):
     creem_api_base: str = "https://api.creem.io/v1"
 
     scraper_interval_minutes: int = 10
+    # Number of search pages to render in one Chromium browser. On the 512 MB
+    # worker use 1 so every query starts with a completely fresh browser.
+    spider_queries_per_browser: int = 2
     request_timeout_seconds: int = 30
     user_agent: str = (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"

@@ -188,6 +188,20 @@ class PlaywrightSpider(Spider):
         """
         snapshots: list[ListingSnapshot] = []
         seen_listing_keys: set[str] = set()
+
+        if settings.spider_queries_per_browser <= 1:
+            # A fresh browser per query is slower, but it is the safest memory
+            # profile on Render's 512 MB Starter worker.
+            for query in queries:
+                fetched = await self.fetch_listings(query, product_type)
+                for snapshot in fetched:
+                    listing_key = snapshot.sku or snapshot.url or snapshot.name
+                    if listing_key in seen_listing_keys:
+                        continue
+                    seen_listing_keys.add(listing_key)
+                    snapshots.append(snapshot)
+            return snapshots
+
         async with async_playwright() as p:
             browser = await p.chromium.launch(
                 headless=True,

@@ -270,8 +270,8 @@ async def test_worker_can_isolate_each_spider_in_a_child_process(monkeypatch):
     monkeypatch.setattr(settings, "worker_country", "")
     monkeypatch.setattr(
         worker,
-        "get_spider_specs",
-        lambda country: [("DE", "Amazon Germany", object)],
+        "_get_spider_targets",
+        lambda country: [("DE", "Amazon Germany")],
     )
     monkeypatch.setattr(worker.asyncio, "create_subprocess_exec", fake_exec)
 

@@ -121,6 +121,8 @@ services:
         value: "1"
       - key: WORKER_ISOLATED_SPIDERS
         value: "true"
+      - key: SPIDER_QUERIES_PER_BROWSER
+        value: "1"
       - key: PLAYWRIGHT_PROXY_SERVER
         sync: false
       - key: PLAYWRIGHT_PROXY_USERNAME

@@ -18,9 +18,38 @@ from pathlib import Path
 import httpx
 
 from app.config import settings
-from app.spiders.registry import get_spider_specs
-
 logger = logging.getLogger(__name__)
+
+_SPIDER_TARGETS: list[tuple[str, str]] = [
+    ("DE", "Amazon Germany"),
+    ("FR", "Amazon France"),
+    ("IT", "Amazon Italy"),
+    ("ES", "Amazon Spain"),
+    ("NL", "Amazon Netherlands"),
+    ("BE", "Amazon Belgium"),
+    ("GB", "Amazon United Kingdom"),
+]
+
+
+def get_spider_specs(country_filter: str | None = None):
+    """Load spider classes lazily so the supervisor can stay lightweight."""
+    from app.spiders.registry import get_spider_specs as load_spider_specs
+
+    return load_spider_specs(country_filter)
+
+
+def _get_spider_targets(country_filter: str | None = None) -> list[tuple[str, str]]:
+    """Return retailer targets without importing Playwright in the supervisor."""
+    targets = list(_SPIDER_TARGETS)
+    if settings.playwright_proxy_server:
+        targets.extend([
+            ("DE", "MediaMarkt Germany"),
+            ("FR", "Boulanger France"),
+            ("FR", "Darty France"),
+        ])
+    if country_filter:
+        targets = [target for target in targets if target[0] == country_filter]
+    return targets
 
 
 def _restart_worker_process() -> None:
@@ -107,10 +136,10 @@ async def run_worker_once_in_children() -> dict[str, dict]:
     each child scrapes one marketplace and exits, returning that memory to the
     operating system before the next marketplace starts.
     """
-    specs = get_spider_specs(settings.worker_country.upper() or None)
+    targets = _get_spider_targets(settings.worker_country.upper() or None)
     results: dict[str, dict] = {}
 
-    for country, retailer_name, _ in specs:
+    for country, retailer_name in targets:
         with tempfile.TemporaryDirectory(prefix="klimaradar-worker-") as state_dir:
             result_path = Path(state_dir) / "result.json"
             command = [
