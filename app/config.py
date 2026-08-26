@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     # Chromium/Playwright memory can fragment over long-running worker
     # processes. Replace the process periodically without losing the container.
     worker_restart_cycles: int = 3
+    # On the 512 MB worker, run each retailer in a short-lived child process.
+    # The parent never launches Chromium, so one marketplace cannot leave
+    # Chromium/Playwright memory behind for the next marketplace.
+    worker_isolated_spiders: bool = False
 
     amazon_de_affiliate_tag: str = ""
     amazon_uk_affiliate_tag: str = ""

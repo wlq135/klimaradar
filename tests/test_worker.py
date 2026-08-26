@@ -243,6 +243,49 @@ async def test_worker_posts_normalized_payload(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_worker_can_isolate_each_spider_in_a_child_process(monkeypatch):
+    from pathlib import Path
+
+    from app import worker
+    from app.config import settings
+
+    commands = []
+
+    class FakeProcess:
+        def __init__(self, result_path: Path):
+            self.result_path = result_path
+
+        async def wait(self):
+            self.result_path.write_text(
+                '{"Amazon Germany": {"success": true, "listings": 9, "stats": {}}}',
+                encoding="utf-8",
+            )
+            return 0
+
+    async def fake_exec(*command):
+        commands.append(command)
+        result_path = Path(command[command.index("--result-file") + 1])
+        return FakeProcess(result_path)
+
+    monkeypatch.setattr(settings, "worker_country", "")
+    monkeypatch.setattr(
+        worker,
+        "get_spider_specs",
+        lambda country: [("DE", "Amazon Germany", object)],
+    )
+    monkeypatch.setattr(worker.asyncio, "create_subprocess_exec", fake_exec)
+
+    results = await worker.run_worker_once_in_children()
+
+    assert results == {
+        "Amazon Germany": {"success": True, "listings": 9, "stats": {}}
+    }
+    assert len(commands) == 1
+    assert commands[0][commands[0].index("--country") + 1] == "DE"
+    assert "--child" in commands[0]
+
+
+@pytest.mark.asyncio
 async def test_worker_recycles_process_after_configured_cycles(monkeypatch):
     from app import worker
     from app.config import settings

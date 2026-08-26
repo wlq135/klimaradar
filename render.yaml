@@ -118,7 +118,9 @@ services:
       - key: SCRAPER_INTERVAL_MINUTES
         value: "10"
       - key: WORKER_RESTART_CYCLES
-        value: "3"
+        value: "1"
+      - key: WORKER_ISOLATED_SPIDERS
+        value: "true"
       - key: PLAYWRIGHT_PROXY_SERVER
         sync: false
       - key: PLAYWRIGHT_PROXY_USERNAME

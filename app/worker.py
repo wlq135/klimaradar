@@ -7,10 +7,13 @@ alerts, avoiding a cross-service SQLite mount (which Render does not support).
 
 import asyncio
 import gc
+import json
 import logging
 import os
 import sys
+import tempfile
 from dataclasses import asdict
+from pathlib import Path
 
 import httpx
 
@@ -94,15 +97,86 @@ async def run_worker_once() -> dict[str, dict]:
     return results
 
 
+async def run_worker_once_in_children() -> dict[str, dict]:
+    """Run each retailer in a fresh child process.
+
+    Chromium frequently does not return all renderer memory to the container
+    after ``browser.close()``. Running all seven marketplaces sequentially in
+    one process repeatedly pushed the 512 MB Render Starter worker over its
+    limit. A small supervisor parent never launches Chromium;
+    each child scrapes one marketplace and exits, returning that memory to the
+    operating system before the next marketplace starts.
+    """
+    specs = get_spider_specs(settings.worker_country.upper() or None)
+    results: dict[str, dict] = {}
+
+    for country, retailer_name, _ in specs:
+        with tempfile.TemporaryDirectory(prefix="klimaradar-worker-") as state_dir:
+            result_path = Path(state_dir) / "result.json"
+            command = [
+                sys.executable,
+                "-m",
+                "app.worker",
+                "--child",
+                "--country",
+                country,
+                "--result-file",
+                str(result_path),
+            ]
+            logger.info("Starting isolated worker child for %s", retailer_name)
+            process = await asyncio.create_subprocess_exec(*command)
+            return_code = await process.wait()
+
+            child_result: dict[str, dict] = {}
+            if result_path.exists():
+                try:
+                    child_result = json.loads(result_path.read_text(encoding="utf-8"))
+                except (OSError, json.JSONDecodeError):
+                    logger.exception("Could not read result from worker child")
+
+            if return_code != 0:
+                logger.error(
+                    "Isolated worker child for %s exited with code %s",
+                    retailer_name,
+                    return_code,
+                )
+                child_result.pop(retailer_name, None)
+                child_result[retailer_name] = {
+                    "success": False,
+                    "error": f"worker child exited with code {return_code}",
+                    "listings": 0,
+                    "stats": {},
+                }
+
+            results.update(child_result)
+            logger.info(
+                "Isolated worker child finished %s: %s",
+                retailer_name,
+                results.get(retailer_name, {}),
+            )
+
+    return results
+
+
 async def run_worker_forever() -> None:
     """Run scraping cycles forever at the configured interval."""
     completed_cycles = 0
     while True:
         try:
-            results = await run_worker_once()
+            if settings.worker_isolated_spiders:
+                results = await run_worker_once_in_children()
+            else:
+                results = await run_worker_once()
             logger.info("Worker cycle completed: %s", results)
         except Exception:
             logger.exception("Worker cycle failed")
+
+        if settings.worker_isolated_spiders:
+            # Chromium only exists in short-lived child processes. Sleeping in
+            # the lightweight parent avoids pointless supervisor restarts.
+            await asyncio.sleep(max(1, settings.scraper_interval_minutes) * 60)
+            continue
+
         completed_cycles += 1
         await asyncio.sleep(max(1, settings.scraper_interval_minutes) * 60)
 
@@ -118,9 +192,35 @@ async def run_worker_forever() -> None:
             return
 
 
+def _write_child_result(path: str, results: dict[str, dict]) -> None:
+    """Persist child results without putting secrets or logs in the file."""
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(results), encoding="utf-8")
+
+
+def _run_cli() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="KlimaRadar standalone scraper worker")
+    parser.add_argument("--child", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--country", default=settings.worker_country)
+    parser.add_argument("--result-file", default="", help=argparse.SUPPRESS)
+    args = parser.parse_args()
+
+    if args.child:
+        settings.worker_country = args.country
+        child_results = asyncio.run(run_worker_once())
+        if args.result_file:
+            _write_child_result(args.result_file, child_results)
+        return
+
+    asyncio.run(run_worker_forever())
+
+
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
-    asyncio.run(run_worker_forever())
+    _run_cli()
