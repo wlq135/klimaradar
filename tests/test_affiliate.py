@@ -22,6 +22,15 @@ from app.routers import pages
 from app.rate_limit import affiliate_click_limiter
 
 
+HUMAN_CLICK_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0",
+    "Referer": "http://testserver/search?country=DE",
+    "sec-fetch-dest": "document",
+    "sec-fetch-mode": "navigate",
+    "sec-fetch-site": "same-origin",
+}
+
+
 @pytest.fixture
 async def db_session():
     engine = create_async_engine(
@@ -105,15 +114,15 @@ async def test_go_redirect_tags_amazon_url_and_logs_click(client, db_session):
     )
 
     response = await client.get(
-        f"/go/{listing.id}",
-        headers={"User-Agent": "Mozilla/5.0 Chrome/126.0"},
+        f"/go/{listing.id}?source=country_listing&placement=listing&position=1",
+        headers=HUMAN_CLICK_HEADERS,
         follow_redirects=False,
     )
 
     assert response.status_code in (307, 302)
     location = response.headers["location"]
     assert "tag=klrmrd-21" in location
-    assert "ascsubtag=v1-1-de-direct-unknown-0" in location
+    assert "ascsubtag=v1-1-de-country-listing-listing-1" in location
 
     click_count = await db_session.scalar(select(func.count(ClickEvent.id)))
     assert click_count == 1
@@ -146,7 +155,7 @@ async def test_go_redirect_records_bounded_attribution(client, db_session):
     response = await client.get(
         f"/go/{listing.id}?source=city_listing&placement=listing&position=3",
         headers={
-            "User-Agent": "Mozilla/5.0 Chrome/126.0",
+            **HUMAN_CLICK_HEADERS,
             "Referer": "http://testserver/de/berlin/portable-ac-in-stock",
         },
         follow_redirects=False,
@@ -194,13 +203,13 @@ async def test_go_redirect_rate_limits_repeated_human_clicks(
         domain="https://www.amazon.de",
         url="https://www.amazon.de/dp/B08RATELIMIT",
     )
-    headers = {"User-Agent": "Mozilla/5.0 Chrome/126.0"}
+    query = "?source=country_listing&placement=listing&position=1"
 
     first = await client.get(
-        f"/go/{listing.id}", headers=headers, follow_redirects=False
+        f"/go/{listing.id}{query}", headers=HUMAN_CLICK_HEADERS, follow_redirects=False
     )
     second = await client.get(
-        f"/go/{listing.id}", headers=headers, follow_redirects=False
+        f"/go/{listing.id}{query}", headers=HUMAN_CLICK_HEADERS, follow_redirects=False
     )
 
     assert first.status_code in (307, 302)
@@ -208,7 +217,7 @@ async def test_go_redirect_rate_limits_repeated_human_clicks(
 
 
 @pytest.mark.asyncio
-async def test_go_redirect_ignores_untrusted_attribution(client, db_session):
+async def test_go_redirect_blocks_cross_site_click(client, db_session):
     listing = await _create_test_listing(
         db_session,
         retailer_name="Amazon Germany",
@@ -219,19 +228,59 @@ async def test_go_redirect_ignores_untrusted_attribution(client, db_session):
     response = await client.get(
         f"/go/{listing.id}?source=city_listing&placement=hero&position=999",
         headers={
-            "User-Agent": "Mozilla/5.0 Chrome/126.0",
+            **HUMAN_CLICK_HEADERS,
             "Referer": "https://evil.example.com/products",
         },
         follow_redirects=False,
     )
 
-    assert response.status_code in (307, 302)
-    event = await db_session.scalar(select(ClickEvent))
-    assert event is not None
-    assert event.source == "city_listing"
-    assert event.placement is None
-    assert event.position is None
-    assert event.page_ref is None
+    assert response.status_code == 403
+    assert response.headers["cache-control"] == "no-store"
+    click_count = await db_session.scalar(select(func.count(ClickEvent.id)))
+    assert click_count == 0
+
+
+@pytest.mark.asyncio
+async def test_go_redirect_blocks_missing_or_partial_attribution(
+    client, db_session
+):
+    listing = await _create_test_listing(
+        db_session,
+        retailer_name="Amazon Germany",
+        domain="https://www.amazon.de",
+        url="https://www.amazon.de/dp/B08MISSINGATTR",
+    )
+
+    for query in ("", "?source=country_listing", "?placement=listing&position=1"):
+        response = await client.get(
+            f"/go/{listing.id}{query}",
+            headers=HUMAN_CLICK_HEADERS,
+            follow_redirects=False,
+        )
+        assert response.status_code == 403
+
+    click_count = await db_session.scalar(select(func.count(ClickEvent.id)))
+    assert click_count == 0
+
+
+@pytest.mark.asyncio
+async def test_go_redirect_blocks_non_document_fetch(client, db_session):
+    listing = await _create_test_listing(
+        db_session,
+        retailer_name="Amazon Germany",
+        domain="https://www.amazon.de",
+        url="https://www.amazon.de/dp/B08SECFETCH",
+    )
+
+    response = await client.get(
+        f"/go/{listing.id}?source=country_listing&placement=listing&position=1",
+        headers={**HUMAN_CLICK_HEADERS, "sec-fetch-dest": "empty"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 403
+    click_count = await db_session.scalar(select(func.count(ClickEvent.id)))
+    assert click_count == 0
 
 
 @pytest.mark.asyncio
@@ -250,8 +299,8 @@ async def test_go_redirect_tags_amazon_belgium_marketplace_url(
     )
 
     response = await client.get(
-        f"/go/{listing.id}",
-        headers={"User-Agent": "Mozilla/5.0 Chrome/126.0"},
+        f"/go/{listing.id}?source=country_listing&placement=listing&position=1",
+        headers=HUMAN_CLICK_HEADERS,
         follow_redirects=False,
     )
 
@@ -269,8 +318,8 @@ async def test_go_redirect_tags_mediamarkt_url(client, db_session):
     )
 
     response = await client.get(
-        f"/go/{listing.id}",
-        headers={"User-Agent": "Mozilla/5.0 Chrome/126.0"},
+        f"/go/{listing.id}?source=country_listing&placement=listing&position=1",
+        headers=HUMAN_CLICK_HEADERS,
         follow_redirects=False,
     )
 
@@ -282,8 +331,8 @@ async def test_go_redirect_tags_mediamarkt_url(client, db_session):
 @pytest.mark.asyncio
 async def test_go_redirect_returns_404_for_missing_listing(client, db_session):
     response = await client.get(
-        "/go/999999",
-        headers={"User-Agent": "Mozilla/5.0 Chrome/126.0"},
+        "/go/999999?source=country_listing&placement=listing&position=1",
+        headers=HUMAN_CLICK_HEADERS,
         follow_redirects=False,
     )
     assert response.status_code == 404

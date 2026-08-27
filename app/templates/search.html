@@ -91,16 +91,17 @@
       <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
       <span>{{ listing_ui.trust_intro }} <span class="text-slate-400">{{ listing_ui.affiliate_note }}</span></span>
     </div>
-    {% if listings %}
     <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-5">
       <div class="flex flex-col lg:flex-row lg:items-center gap-4">
         <div class="flex-1">
-          <h2 class="font-bold text-emerald-900">Want these results in your inbox?</h2>
+          <h2 class="font-bold text-emerald-900">
+            {% if listings %}Want these results in your inbox?{% else %}Be first when a matching AC returns{% endif %}
+          </h2>
           <p class="text-sm text-emerald-800 mt-1">
-            We check stock and prices continuously. Get one daily summary, or an instant email when a matching AC comes back in stock.
+            Enter your email once. We’ll send a daily in-stock digest now and alert you when matching stock appears.
           </p>
         </div>
-        <form data-alert-form onsubmit="submitAlert(event)" class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 lg:w-[34rem]">
+        <form data-alert-form onsubmit="submitAlert(event)" class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 lg:w-[30rem]">
           <input type="hidden" name="country" value="{{ filters.country }}">
           <input type="hidden" name="city" value="{{ filters.city or '' }}">
           <input type="hidden" name="product_type" value="{{ filters.product_type or 'portable' }}">
@@ -109,19 +110,15 @@
           <input type="hidden" name="max_price" value="{{ filters.max_price or '' }}">
           <input type="hidden" name="in_stock_only" value="true">
           <input type="hidden" name="source" value="{{ subscription_context|default('country') }}_inline">
+          <input type="hidden" name="frequency" value="daily">
           <input type="email" name="email" required placeholder="your@email.com" class="rounded-lg border border-emerald-300 px-3 py-2 text-sm" aria-label="Email address">
-          <select name="frequency" class="rounded-lg border border-emerald-300 px-3 py-2 text-sm" aria-label="Alert frequency">
-            <option value="daily">Daily digest</option>
-            <option value="immediate">Instant</option>
-          </select>
           <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold rounded-lg px-4 py-2 whitespace-nowrap">
-            Track these ACs
+            Email me in-stock ACs
           </button>
         </form>
       </div>
       <p data-alert-message class="mt-2 text-sm text-emerald-900"></p>
     </div>
-    {% endif %}
     {% if listings %}
     <div class="space-y-4">
       {% for item in listings %}
@@ -310,7 +307,7 @@
             "priceCurrency": {{ (item.currency or 'EUR')|tojson }},
             "price": {{ (item.price|string if item.price else '0')|tojson }},
             "availability": {% if item.stock_status == 'in_stock' %}"https://schema.org/InStock"{% elif item.stock_status == 'out_of_stock' %}"https://schema.org/OutOfStock"{% elif item.stock_status == 'back_order' %}"https://schema.org/BackOrder"{% elif item.stock_status == 'pre_order' %}"https://schema.org/PreOrder"{% else %}"https://schema.org/InStock"{% endif %},
-            "url": {{ (request.url.scheme + '://' + request.url.netloc + item.affiliate_url)|tojson }},
+            "url": {{ item.product_url|tojson }},
             "seller": { "@type": "Organization", "name": {{ item.retailer|tojson }} }
           }
         }{% if not loop.last %},{% endif %}

@@ -509,7 +509,9 @@ async def test_city_page_with_listing_offers_inline_alert_capture(client, db_ses
 
     assert response.status_code == 200
     assert 'name="source" value="city_inline"' in response.text
-    assert "Track these ACs" in response.text
+    assert "Email me in-stock ACs" in response.text
+    assert 'name="frequency" value="daily"' in response.text
+    assert '"url": "https://amazon.de/berlin-inline"' in response.text
     assert "Track this model" in response.text
     assert f"openAlertModal({product.id})" in response.text
 
@@ -677,6 +679,28 @@ async def test_homepage_promotes_all_btu_comparisons(client):
         assert f'href="{comparison_path(country)}"' in text
 
 
+
+
+@pytest.mark.asyncio
+async def test_homepage_puts_email_capture_in_hero(client):
+    response = await client.get("/")
+
+    assert response.status_code == 200
+    text = response.text
+    assert 'id="homepage-alert-form"' in text
+    assert "Email me in-stock ACs" in text
+    assert text.index('id="homepage-alert-form"') < text.index("Compare 12,000 BTU")
+
+
+@pytest.mark.asyncio
+async def test_empty_country_search_still_offers_inline_email_capture(client):
+    response = await client.get("/search?country=DE")
+
+    assert response.status_code == 200
+    text = response.text
+    assert 'name="source" value="country_inline"' in text
+    assert 'name="frequency" value="daily"' in text
+    assert "Be first when a matching AC returns" in text
 
 
 @pytest.mark.asyncio

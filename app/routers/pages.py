@@ -1033,6 +1033,36 @@ def _same_site_page_ref(request: Request) -> str | None:
     return page_ref[:500] or None
 
 
+def _is_valid_browser_click(request: Request) -> bool:
+    """Require an outbound click to originate from a rendered site page.
+
+    Search-result structured data previously exposed bare ``/go/{id}`` URLs.
+    Rich-result crawlers fetched those URLs and created a large number of
+    ``legacy`` clicks even when JavaScript analytics showed almost no human
+    visits. Real page links always carry source/placement/position and are
+    same-origin navigations, so reject anything else before touching Amazon.
+    """
+    if _normalized_click_source(request) is None:
+        return False
+    if _normalized_click_placement(request) is None:
+        return False
+    if _normalized_click_position(request) is None:
+        return False
+    if _same_site_page_ref(request) is None:
+        return False
+
+    fetch_dest = request.headers.get("sec-fetch-dest")
+    fetch_mode = request.headers.get("sec-fetch-mode")
+    fetch_site = request.headers.get("sec-fetch-site")
+    if fetch_dest is not None and fetch_dest.lower() != "document":
+        return False
+    if fetch_mode is not None and fetch_mode.lower() != "navigate":
+        return False
+    if fetch_site is not None and fetch_site.lower() != "same-origin":
+        return False
+    return True
+
+
 def _is_likely_automated_click(user_agent: str | None) -> bool:
     """Classify obvious link checkers and crawlers without exposing raw UAs."""
     normalized = (user_agent or "").lower()
@@ -1087,6 +1117,13 @@ async def affiliate_redirect(
     if _is_likely_automated_click(request.headers.get("user-agent")):
         return Response(
             "Automated outbound clicks are blocked.",
+            status_code=403,
+            headers={"Cache-Control": "no-store"},
+        )
+
+    if not _is_valid_browser_click(request):
+        return Response(
+            "Outbound clicks must originate from a KlimaRadar page.",
             status_code=403,
             headers={"Cache-Control": "no-store"},
         )
@@ -1573,6 +1610,7 @@ def _listing_row(listing: Listing, product: Product, retailer: Retailer) -> dict
         "is_amazon": retailer.domain.lower().startswith("amazon."),
         "country": listing.country,
         "product_id": product.id,
+        "product_url": listing.url,
         "btu_min": product.btu_min,
         "btu_max": product.btu_max,
         "btu_label": _btu_label(product.btu_min, product.btu_max),
