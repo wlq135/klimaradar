@@ -32,6 +32,13 @@ from app.seo.comparisons import (
     get_btu_comparison,
     list_btu_comparisons,
 )
+from app.seo.intents import (
+    GERMAN_INTENT_PAGES,
+    build_intent_article_jsonld,
+    get_german_intent,
+    german_intent_path,
+    list_german_intents,
+)
 
 __all__ = [
     "CITY_METADATA",
@@ -60,4 +67,9 @@ __all__ = [
     "comparison_path",
     "get_btu_comparison",
     "list_btu_comparisons",
+    "GERMAN_INTENT_PAGES",
+    "build_intent_article_jsonld",
+    "get_german_intent",
+    "german_intent_path",
+    "list_german_intents",
 ]

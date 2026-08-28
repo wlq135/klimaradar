@@ -171,6 +171,7 @@ class SearchFilters(BaseModel):
     city: str | None = None
     product_type: str | None = "portable"
     min_btu: int | None = None
+    max_btu: int | None = None
     max_price: float | None = None
     in_stock_only: bool = False
     q: str | None = None

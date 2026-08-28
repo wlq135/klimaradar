@@ -640,6 +640,138 @@ async def test_unknown_btu_comparison_returns_404(client):
 
 
 @pytest.mark.asyncio
+async def test_german_intent_page_filters_live_inventory_and_tracks_attribution(
+    client, db_session
+):
+    now = datetime.now(timezone.utc)
+    retailer = Retailer(name="Amazon Germany", country="DE", domain="amazon.de")
+    products = [
+        Product(
+            name="Compact 8000 BTU AC",
+            product_type="portable",
+            btu_min=7000,
+            btu_max=9000,
+        ),
+        Product(
+            name="Living Room 12000 BTU AC",
+            product_type="portable",
+            btu_min=12000,
+            btu_max=12000,
+        ),
+        Product(
+            name="Large 14000 BTU AC",
+            product_type="portable",
+            btu_min=14000,
+            btu_max=14000,
+        ),
+    ]
+    db_session.add_all([retailer, *products])
+    await db_session.flush()
+    for index, product in enumerate(products):
+        db_session.add(
+            Listing(
+                product_id=product.id,
+                retailer_id=retailer.id,
+                sku=f"DE-INTENT-{index}",
+                url=f"https://amazon.de/de-intent-{index}",
+                price=349 + index * 500,
+                currency="EUR",
+                country="DE",
+                stock_status="in_stock",
+                last_seen_at=now,
+            )
+        )
+    await db_session.commit()
+
+    response = await client.get("/de/mobiles-klimageraet-12000-btu-30-qm")
+
+    assert response.status_code == 200
+    assert "s-maxage=60" in response.headers["cache-control"]
+    assert '<html lang="de-DE"' in response.text
+    from app.config import settings
+    expected_canonical = (
+        f'{settings.base_url.rstrip("/")}/de/mobiles-klimageraet-12000-btu-30-qm'
+    )
+    assert f'rel="canonical" href="{expected_canonical}"' in response.text
+    assert "Mobiles Klimagerät 12000 BTU für 30 m² auf Lager" in response.text
+    assert "Living Room 12000 BTU AC" in response.text
+    assert "Large 14000 BTU AC" in response.text
+    assert "Compact 8000 BTU AC" not in response.text
+    assert "source=intent_top3&amp;placement=top3" in response.text
+    assert "source=intent_listing&amp;placement=listing" in response.text
+    assert 'name="source" value="intent_inline"' in response.text
+    assert '"@type": "Article"' in response.text
+    assert '"@type": "FAQPage"' in response.text
+    assert 'href="/de/mobile-klimageraet-mit-abluftschlauch"' in response.text
+
+
+@pytest.mark.asyncio
+async def test_german_budget_and_btu_intent_filters_apply(client, db_session):
+    now = datetime.now(timezone.utc)
+    retailer = Retailer(name="Amazon Germany", country="DE", domain="amazon.de")
+    budget = Product(
+        name="Budget 7000 BTU AC",
+        product_type="portable",
+        btu_min=7000,
+        btu_max=7000,
+    )
+    large = Product(
+        name="Premium 14000 BTU AC",
+        product_type="portable",
+        btu_min=14000,
+        btu_max=14000,
+    )
+    db_session.add_all([retailer, budget, large])
+    await db_session.flush()
+    for product, price in ((budget, 349), (large, 1099)):
+        db_session.add(
+            Listing(
+                product_id=product.id,
+                retailer_id=retailer.id,
+                sku=f"DE-FILTER-{product.id}",
+                url=f"https://amazon.de/filter-{product.id}",
+                price=price,
+                currency="EUR",
+                country="DE",
+                stock_status="in_stock",
+                last_seen_at=now,
+            )
+        )
+    await db_session.commit()
+
+    budget_response = await client.get("/de/mobile-klimaanlage-unter-400-euro")
+    quiet_response = await client.get("/de/mobiles-klimageraet-9000-btu-leise")
+
+    assert budget_response.status_code == 200
+    assert "Budget 7000 BTU AC" in budget_response.text
+    assert "Premium 14000 BTU AC" not in budget_response.text
+    assert quiet_response.status_code == 200
+    assert "Budget 7000 BTU AC" in quiet_response.text
+    assert "Premium 14000 BTU AC" not in quiet_response.text
+
+
+@pytest.mark.asyncio
+async def test_german_intent_pages_are_internal_linked_and_in_sitemap(client):
+    home = await client.get("/")
+    search = await client.get("/search?country=DE")
+    guide = await client.get("/guides/de/portable-air-conditioner")
+    sitemap = await client.get("/sitemap.xml")
+    intent_path = "/de/mobiles-klimageraet-12000-btu-30-qm"
+
+    assert intent_path in home.text
+    assert intent_path in search.text
+    assert intent_path in guide.text
+    assert intent_path in sitemap.text
+    assert "/de/mobile-klimaanlage-unter-400-euro" in sitemap.text
+
+
+@pytest.mark.asyncio
+async def test_unknown_german_intent_returns_404(client):
+    response = await client.get("/de/not-a-real-intent")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_search_guide_and_sitemap_link_btu_comparisons(client):
     search = await client.get("/search?country=IT")
     guide = await client.get(guide_path("FR"))

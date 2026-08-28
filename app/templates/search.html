@@ -237,6 +237,25 @@
 </article>
 {% endif %}
 
+{% if related_intents %}
+<section class="bg-white border-t border-slate-200 py-10">
+  <div class="max-w-6xl mx-auto px-4">
+    <h2 class="text-xl font-bold mb-1">Passende Suchanfragen</h2>
+    <p class="text-sm text-slate-500 mb-6">Live Preise und Lagerbestände für häufige Anwendungsfälle prüfen.</p>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {% for intent in related_intents %}
+      <a href="{{ intent.path }}" class="bg-slate-50 border border-slate-200 rounded-xl p-5 hover:bg-white hover:shadow-md transition">
+        <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">{{ intent.badge }}</p>
+        <h3 class="font-semibold text-slate-900 mt-2">{{ intent.card_title }}</h3>
+        <p class="text-sm text-slate-600 mt-2">{{ intent.card_body }}</p>
+        <span class="text-sm font-semibold text-emerald-700">Ansehen →</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
 {% if other_cities %}
 <section class="bg-slate-50 border-t border-slate-200 py-8">
   <div class="max-w-6xl mx-auto px-4">

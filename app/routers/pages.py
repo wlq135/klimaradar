@@ -40,6 +40,9 @@ from app.seo import (
     build_comparison_article_jsonld,
     get_btu_comparison,
     list_btu_comparisons,
+    build_intent_article_jsonld,
+    get_german_intent,
+    list_german_intents,
 )
 from app.services.affiliate import add_amazon_subtag, build_amazon_subtag, tag_url
 from app.services.cache import get_or_compute, public_page_cache
@@ -496,6 +499,7 @@ async def index(request: Request, session: AsyncSession = Depends(get_db)):
             stats=stats,
             popular_searches=popular_searches,
             high_intent_comparisons=high_intent_comparisons,
+            german_intents=list_german_intents(),
             canonical_url=canonical_url,
         ),
     )
@@ -562,6 +566,8 @@ async def sitemap_xml():
         urls.append((f"{base}{guide['path']}", "0.8"))
     for comparison in list_btu_comparisons():
         urls.append((f"{base}{comparison['path']}", "0.9"))
+    for intent in list_german_intents():
+        urls.append((f"{base}{intent['path']}", "0.9"))
 
     lines = ['<?xml version="1.0" encoding="UTF-8"?>']
     lines.append('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
@@ -708,6 +714,7 @@ async def search(
     listing_ui = _listing_ui(country_upper)
     country_guide = get_country_guide(country_upper)
     btu_comparison = get_btu_comparison(country_upper)
+    related_intents = list_german_intents() if country_upper == "DE" else []
     if country_guide:
         search_cities_title = country_guide["cities_title"]
     faq_content = country_guide["faqs"] if country_guide else None
@@ -752,6 +759,7 @@ async def search(
             listing_ui=listing_ui,
             country_guide=country_guide,
             btu_comparison=btu_comparison,
+            related_intents=related_intents,
             faq_title=country_guide["faq_title"] if country_guide else None,
             faq_content=faq_content,
             faq_jsonld=json.dumps(faq_jsonld, ensure_ascii=False) if faq_jsonld else None,
@@ -861,6 +869,110 @@ async def btu_comparison_page(
 
 
 @router.api_route(
+    "/de/{intent_slug}",
+    methods=["GET", "HEAD"],
+    response_class=HTMLResponse,
+)
+async def german_intent_page(
+    request: Request,
+    intent_slug: str,
+    session: AsyncSession = Depends(get_db),
+):
+    intent = get_german_intent(intent_slug)
+    if intent is None:
+        raise HTTPException(status_code=404, detail="Guide not found")
+
+    filters = SearchFilters(
+        country="DE",
+        product_type="portable",
+        **intent["filters"],
+    )
+    listings, total = await _fetch_filtered_listings(session, filters, limit=24)
+    # Intent filters are stricter than the country-wide top-deal query. Reuse
+    # the first filtered rows so the cards cannot contradict the page promise.
+    top_deals = listings[:3]
+
+    base = settings.base_url.rstrip("/")
+    canonical_url = f"{base}{intent['path']}"
+    hreflang_alternates = build_hreflang_alternates(
+        intent["html_lang"], canonical_url, base
+    )
+    article_jsonld = build_intent_article_jsonld(base, intent)
+    faq_jsonld = build_faq_jsonld(intent["faqs"])
+    breadcrumb_jsonld = {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "KlimaRadar",
+                "item": f"{base}/",
+            },
+            {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Mobile Klimaanlagen in Deutschland",
+                "item": f"{base}/search?country=DE",
+            },
+            {
+                "@type": "ListItem",
+                "position": 3,
+                "name": intent["h1"],
+                "item": canonical_url,
+            },
+        ],
+    }
+
+    country_guide = get_country_guide("DE")
+    btu_comparison = get_btu_comparison("DE")
+    other_cities = list_cities_for_country("DE", limit=9)
+    listing_ui = _listing_ui("DE")
+
+    response = templates.TemplateResponse(
+        request,
+        "search.html",
+        _template_context(
+            request,
+            title=intent["title"],
+            description=intent["description"],
+            html_lang=intent["html_lang"],
+            hreflang_alternates=hreflang_alternates,
+            canonical_url=canonical_url,
+            h1=intent["h1"],
+            page_intro=intent["lead"],
+            listings=listings,
+            top_deals=top_deals,
+            top_deal_source="intent_top3",
+            listing_source="intent_listing",
+            subscription_context="intent",
+            filters=filters.model_dump(),
+            total=total,
+            current_page=1,
+            total_pages=1,
+            has_prev=False,
+            has_next=False,
+            other_cities=other_cities,
+            popular_cities_title=(
+                country_guide["cities_title"] if country_guide else "Popular cities"
+            ),
+            listing_ui=listing_ui,
+            country_guide=country_guide,
+            btu_comparison=btu_comparison,
+            comparison_sections=intent["sections"],
+            breadcrumb_jsonld=json.dumps(breadcrumb_jsonld, ensure_ascii=False),
+            article_jsonld=json.dumps(article_jsonld, ensure_ascii=False),
+            faq_title=intent["faq_title"],
+            faq_content=intent["faqs"],
+            faq_jsonld=json.dumps(faq_jsonld, ensure_ascii=False),
+            related_intents=list_german_intents(exclude_slug=intent["slug"]),
+            seo_mode=True,
+        ),
+    )
+    return _public_cache(response, ttl_seconds=60)
+
+
+@router.api_route(
     "/guides/{country}/portable-air-conditioner",
     methods=["GET", "HEAD"],
     response_class=HTMLResponse,
@@ -881,6 +993,7 @@ async def country_buying_guide(request: Request, country: str):
     other_guides = list_country_guides(exclude=guide["country"])
     listing_ui = _listing_ui(guide["country"])
     btu_comparison = get_btu_comparison(guide["country"])
+    related_intents = list_german_intents() if guide["country"] == "DE" else []
 
     response = templates.TemplateResponse(
         request,
@@ -897,6 +1010,7 @@ async def country_buying_guide(request: Request, country: str):
             other_guides=other_guides,
             listing_ui=listing_ui,
             btu_comparison=btu_comparison,
+            related_intents=related_intents,
             article_jsonld=json.dumps(article_jsonld, ensure_ascii=False),
             faq_jsonld=json.dumps(faq_jsonld, ensure_ascii=False),
         ),
@@ -982,6 +1096,8 @@ _ALLOWED_CLICK_SOURCES = {
     "city_listing",
     "compare_top3",
     "compare_listing",
+    "intent_top3",
+    "intent_listing",
 }
 
 _ALLOWED_CLICK_PLACEMENTS = {"top3", "listing"}
@@ -1681,6 +1797,10 @@ async def _fetch_filtered_listings(
         if filters.min_btu:
             base_stmt = base_stmt.where(
                 (Product.btu_max >= filters.min_btu) | (Product.btu_max.is_(None))
+            )
+        if filters.max_btu:
+            base_stmt = base_stmt.where(
+                (Product.btu_min <= filters.max_btu) | (Product.btu_min.is_(None))
             )
         if filters.max_price:
             base_stmt = base_stmt.where(
