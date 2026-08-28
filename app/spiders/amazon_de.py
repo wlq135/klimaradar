@@ -12,8 +12,11 @@ class AmazonDeSpider(BaseAmazonSpider):
     default_query = "mobiles klimagerät"
     default_queries = [
         "mobiles klimagerät",
+        "mobiles klimagerät 7000 BTU",
         "mobiles klimagerät 9000 BTU",
         "mobiles klimagerät 12000 BTU",
+        "mobiles klimagerät leise",
+        "mobile klimagerät mit abluftschlauch",
     ]
     currency = "EUR"
     _LOCALE = "de-DE"

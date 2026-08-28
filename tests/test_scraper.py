@@ -116,6 +116,9 @@ def test_amazon_spiders_use_high_intent_btu_queries():
     for spider, query in expected.items():
         assert query in spider.default_queries
 
+    assert "mobiles klimagerät leise" in AmazonDeSpider.default_queries
+    assert "mobile klimagerät mit abluftschlauch" in AmazonDeSpider.default_queries
+
 
 def test_amazon_es_keeps_real_portable_acs_with_fan_mode():
     from app.spiders.amazon_es import AmazonEsSpider
